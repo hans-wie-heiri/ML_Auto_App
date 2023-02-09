@@ -18,6 +18,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression, Perceptro
 from sklearn.dummy import DummyRegressor, DummyClassifier
 from sklearn.svm import SVR, SVC, LinearSVR
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.feature_selection import VarianceThreshold
 
 
 # ------------- Settings --------------
@@ -48,12 +49,14 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 # housing = pd.read_csv('https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv')
 # df = housing
 # df = pd.read_csv('winequality-red.csv', sep=';')
-df = pd.read_csv('breast_cancer.csv', sep=',')
-
+# df = pd.read_csv('breast_cancer.csv', sep=',')
+df = pd.read_csv('acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', sep=',')
 
 ## head the data
 st.subheader("first entries of the dataframe")
-st.dataframe(df.head().style.set_precision(2))
+st.dataframe(df.head(10).style.set_precision(2))
+n_row, n_col = df.shape
+st.write(n_col, " features, ", n_row, " rows, ", df.size, " total elements")
 
 ## show col info function
 
@@ -73,6 +76,15 @@ def show_info(df):
 
 st.subheader("column info")
 st.dataframe(show_info(df))
+
+use_cor_matrix = st.button("create correlation matrix of continuous variables")
+
+if use_cor_matrix:
+    st.subheader("Correlation matrix of continuous variables")
+    corr_matrix = df.corr()
+    fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues) # reverse color by adding "_r" (eg. Blues_r) 
+    st.plotly_chart(fig)
+
 
 st.markdown("""---""")
 
@@ -98,7 +110,6 @@ elif len(cat_cols) > 0:
 
 # dummie code user selected cat columns
 
-# TODO: Dummie recoding doesn't work in breastcancer data
 us_dummie_var = st.multiselect(
     'Which columns do you want to recode as dummies?',
     cat_cols, default=list(cat_cols))
@@ -125,29 +136,51 @@ st.markdown("""---""")
 
 # ------------- Data Splitting, Scaling and transform to array for model --------------
 
+st.subheader('Choose your Y')
+
 us_y_var = st.selectbox(
     'Which column do you want as dependent variable?',
     df.columns)
 
-#st.write('You selected:', us_y_var, 'as the dependent variable')
+x_options_df = df.drop(columns=[us_y_var])
 
-x_options = list(df.columns)
-x_options.remove(us_y_var)
+# TODO: split threshold for dummies (% occurence) ans continuous (variance). continuous hase to be scaled before see commented lines
+# scaler = MinMaxScaler().set_output(transform="pandas")
+# x_options_scal_df = scaler.fit_transform(x_options_df)
+
+
+st.subheader('Choose your X')
+
+use_variance_threshold = st.button("drop columns with 0 variance")
+
+if use_variance_threshold:
+    # variancetreshold = st.number_input("Feature Selection with minimal variance within feature", min_value=0.0, max_value=1.0, value=0.0)
+    n_col_before = len(x_options_df.columns)
+    selection = VarianceThreshold(threshold=(0)).set_output(transform="pandas")
+    x_options_df = selection.fit_transform(x_options_df)
+    n_col_after = len(x_options_df.columns)
+    n_del_col = (n_col_before - n_col_after)
+    st.write("Number of deleted columns: ", n_del_col)
+    st.write("Number of retained columns: ", n_col_after)
 
 us_x_var = st.multiselect(
     'Which columns do you want as independent variable?',
-    x_options,
-    default=x_options)
-
-#st.write('You selected:', us_x_var, 'as the independent variable')
-
+    list(x_options_df),
+    default=list(x_options_df))
 
 
 y_ser = df[us_y_var]
 X_df = df[us_x_var]
 
+st.subheader('See selected variables')
+
 st.write('chosen dependent variable')
-st.dataframe(y_ser.head())
+
+col1, col2 = st.columns((0.25, 0.75))
+col1.dataframe(y_ser)
+
+fig = px.histogram(df, x= us_y_var )
+col2.plotly_chart(fig, use_container_width=True)
 
 st.write('chosen independent variable')
 st.dataframe(X_df.head().style.set_precision(2))
