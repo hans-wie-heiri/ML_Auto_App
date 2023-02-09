@@ -56,14 +56,7 @@ csv_options = {
 }
 
 csv_name = [i for i in csv_options]
-
 use_csv_name = st.selectbox('select dataset', options= csv_name)
-
-# housing = pd.read_csv('https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv')
-# df = housing
-# df = pd.read_csv('winequality-red.csv', sep=';')
-# df = pd.read_csv('breast_cancer.csv', sep=',')
-# df = pd.read_csv('acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', sep=',')
 df = pd.read_csv(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
 
 ## head the data
@@ -202,9 +195,12 @@ st.dataframe(X_df.head().style.set_precision(2))
 
 st.markdown("""---""")
 
+
 # ------------- Launch model calculation --------------
 
+
 #--- Regression models
+
 
 regression_models = {'RandomForestRegressor': RandomForestRegressor(),
           'LinearRegression': LinearRegression(),
@@ -214,9 +210,22 @@ regression_models = {'RandomForestRegressor': RandomForestRegressor(),
 
 st.subheader("Launch auto regression models")
 
+# reg_models_ready = False
+
 start_reg_models = st.button("Start regression analysis")
 
-if start_reg_models:
+# initialise session state
+
+# TODO: models are updated after every change in the filter below
+# solution idea: make two session states.
+# 1 that shows the results - model gets ploted again
+# 1 that refreshes the model - model only gets rerun on click
+
+if "start_reg_models_state" not in st.session_state :
+    st.session_state.start_reg_models_state = False
+
+if start_reg_models or st.session_state.start_reg_models_state:
+    st.session_state.start_reg_models_state = True
 
     X_train_df, X_test_df, y_train_df, y_test_df = train_test_split(X_df, y_ser, random_state=0, test_size=0.25)
 
@@ -230,6 +239,8 @@ if start_reg_models:
     modelnames = []
     r2_scores = []
     mae_scores = []
+    predictions = {}
+    residuals = {}
 
     for i in regression_models:
         m_reg = regression_models[i]
@@ -240,20 +251,57 @@ if start_reg_models:
         r2 = m_reg.score(X_test, y_test)
         
         modelnames.append(i)
-        r2_scores.append(round(r2, 4))
-        mae_scores.append(round(mae, 4))
+        r2_scores.append(round(r2, 3))
+        mae_scores.append(round(mae, 2))
+        predictions[i] = y_test_predict
+        residuals[i] = (y_test_predict - y_test)
 
+    # Model score dataframe
     reg_scores_df = pd.DataFrame({'Model': modelnames, 'R2': r2_scores, 'MAE': mae_scores})
     reg_scores_df = reg_scores_df.sort_values(by='R2', ascending = False).reset_index().drop(columns=['index'])
     R2_floor = 0.0
     reg_scores_df['R2_floored_0'] = np.maximum(reg_scores_df['R2'], R2_floor)
     
+    # prediction dataframe
+    reg_pred_y_df = pd.DataFrame(predictions)
+    reg_pred_y_df['y_test'] = pd.Series(y_test)
 
+    # residual dataframe
+    reg_res_y_df = pd.DataFrame(residuals)
+    reg_res_y_df['y_test'] = pd.Series(y_test)
+
+    # plot model scores
     fig = px.bar(reg_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0')
     fig['layout']['yaxis']['autorange'] = "reversed"
     st.plotly_chart(fig)
 
+    # show tabel of model scores
     st.dataframe(reg_scores_df.style.set_precision(4))
+
+
+    use_reg_model = st.radio('show results for:', regression_models) #reg_scores_df['Model']
+
+    # plot model value vs actual
+    fig = px.scatter(reg_pred_y_df, x = use_reg_model, y = 'y_test', title= 'Prediction vs y_test').update_layout(
+                xaxis_title="model prediction", yaxis_title="y test")
+    fig = fig.add_traces(px.line(reg_pred_y_df, x='y_test', y='y_test', color_discrete_sequence=["yellow"]).data)
+    st.plotly_chart(fig)
+
+    # plot histogramm of residuals
+    fig = px.histogram(reg_res_y_df, x = use_reg_model,
+                title="Histogramm of Residuals").update_layout(
+                xaxis_title="residuals")
+
+    st.plotly_chart(fig)
+
+    # plot residuals and y test
+    fig = px.scatter(reg_res_y_df, x = 'y_test', y = use_reg_model,
+                title="Residuals and Y").update_layout(
+                xaxis_title="y test", yaxis_title="residuals")
+
+    st.plotly_chart(fig)
+
+
 
 #--- Classification models
 
