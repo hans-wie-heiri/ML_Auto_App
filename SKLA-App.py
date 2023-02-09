@@ -46,11 +46,25 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # ------------- Get data in and show it --------------
 
+st.subheader("choose the data")
+
+csv_options = {
+    'california housing': ['https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv', ','],
+    'winequality': ['winequality-red.csv', ';'],
+    'breast cancer': ['breast_cancer.csv', ','], 
+    'bioactivity acetylcholinesterase': ['acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', ',']
+}
+
+csv_name = [i for i in csv_options]
+
+use_csv_name = st.selectbox('select dataset', options= csv_name)
+
 # housing = pd.read_csv('https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv')
 # df = housing
 # df = pd.read_csv('winequality-red.csv', sep=';')
 # df = pd.read_csv('breast_cancer.csv', sep=',')
-df = pd.read_csv('acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', sep=',')
+# df = pd.read_csv('acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', sep=',')
+df = pd.read_csv(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
 
 ## head the data
 st.subheader("first entries of the dataframe")
@@ -231,9 +245,11 @@ if start_reg_models:
 
     reg_scores_df = pd.DataFrame({'Model': modelnames, 'R2': r2_scores, 'MAE': mae_scores})
     reg_scores_df = reg_scores_df.sort_values(by='R2', ascending = False).reset_index().drop(columns=['index'])
+    R2_floor = 0.0
+    reg_scores_df['R2_floored_0'] = np.maximum(reg_scores_df['R2'], R2_floor)
     
 
-    fig = px.bar(reg_scores_df, x = 'R2', y = 'Model', orientation = 'h', color = 'R2')
+    fig = px.bar(reg_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0')
     fig['layout']['yaxis']['autorange'] = "reversed"
     st.plotly_chart(fig)
 
