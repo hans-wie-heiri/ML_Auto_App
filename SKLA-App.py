@@ -228,9 +228,15 @@ start_reg_models = st.button("Start regression analysis")
 
 if "start_reg_models_state" not in st.session_state :
     st.session_state.start_reg_models_state = False
+    
+if "y_var_user" not in st.session_state:
+    st.session_state.y_var_user = us_y_var
 
-if start_reg_models or st.session_state.start_reg_models_state:
+check_y_no_change = st.session_state.y_var_user == us_y_var
+
+if (start_reg_models or (st.session_state.start_reg_models_state and check_y_no_change)):
     st.session_state.start_reg_models_state = True
+    st.session_state.y_var_user = us_y_var
 
     @st.cache_data(ttl = time_to_live_cache) 
     def split_normalize(X_df, y_ser):
@@ -301,7 +307,7 @@ if start_reg_models or st.session_state.start_reg_models_state:
     st.dataframe(reg_scores_df.style.set_precision(4))
 
 
-    use_reg_model = st.radio('show results for:', regression_models) #reg_scores_df['Model']
+    use_reg_model = st.radio('show results for:', reg_scores_df.Model) #reg_scores_df['Model']
 
     # plot model value vs actual
     fig = px.scatter(reg_pred_y_df, x = use_reg_model, y = 'y_test', title= 'Prediction vs y_test').update_layout(
