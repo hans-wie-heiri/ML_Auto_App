@@ -68,14 +68,6 @@ def load_data(url, sep):
 
 df = load_data(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
 
-# @st.cache_data 
-# def load_data(url):
-#     df = pd.read_csv(url)  # 👈 Download the data
-#     return df
-
-# df = load_data("https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv")
-
-
 
 ## head the data
 st.subheader("first entries of the dataframe")
@@ -245,14 +237,20 @@ if "start_reg_models_state" not in st.session_state :
 if start_reg_models or st.session_state.start_reg_models_state:
     st.session_state.start_reg_models_state = True
 
-    X_train_df, X_test_df, y_train_df, y_test_df = train_test_split(X_df, y_ser, random_state=0, test_size=0.25)
+    @st.cache_data(ttl = time_to_live_cache) 
+    def split_normalize(X_df, y_ser):
+        X_train_df, X_test_df, y_train_df, y_test_df = train_test_split(X_df, y_ser, random_state=0, test_size=0.25)
 
-    scaler = MinMaxScaler()
-    X_train = scaler.fit_transform(X_train_df)
-    X_test = scaler.transform(X_test_df)
+        scaler = MinMaxScaler()
+        X_train = scaler.fit_transform(X_train_df)
+        X_test = scaler.transform(X_test_df)
 
-    y_train = y_train_df.to_numpy()
-    y_test = y_test_df.to_numpy()
+        y_train = y_train_df.to_numpy()
+        y_test = y_test_df.to_numpy()
+        
+        return(X_train, X_test, y_train, y_test)
+
+    X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser)
 
     modelnames = []
     r2_scores = []
