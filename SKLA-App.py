@@ -224,12 +224,7 @@ st.subheader("Launch auto regression models")
 
 start_reg_models = st.button("Start regression analysis")
 
-# initialise session state
-
-# TODO: models are updated after every change in the filter below
-# solution idea: make two session states.
-# 1 that shows the results - model gets ploted again
-# 1 that refreshes the model - model only gets rerun on click
+# initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
 
 if "start_reg_models_state" not in st.session_state :
     st.session_state.start_reg_models_state = False
@@ -252,39 +247,50 @@ if start_reg_models or st.session_state.start_reg_models_state:
 
     X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser)
 
-    modelnames = []
-    r2_scores = []
-    mae_scores = []
-    predictions = {}
-    residuals = {}
-
-    for i in regression_models:
-        m_reg = regression_models[i]
-        m_reg.fit(X_train, y_train)
-
-        y_test_predict = m_reg.predict(X_test)
-        mae = mean_absolute_error(y_test_predict, y_test)
-        r2 = m_reg.score(X_test, y_test)
-        
-        modelnames.append(i)
-        r2_scores.append(round(r2, 3))
-        mae_scores.append(round(mae, 2))
-        predictions[i] = y_test_predict
-        residuals[i] = (y_test_predict - y_test)
-
-    # Model score dataframe
-    reg_scores_df = pd.DataFrame({'Model': modelnames, 'R2': r2_scores, 'MAE': mae_scores})
-    reg_scores_df = reg_scores_df.sort_values(by='R2', ascending = False).reset_index().drop(columns=['index'])
-    R2_floor = 0.0
-    reg_scores_df['R2_floored_0'] = np.maximum(reg_scores_df['R2'], R2_floor)
+    @st.cache_data(ttl = time_to_live_cache) 
+    def reg_models_comparison(X_train, X_test, y_train, y_test):
     
-    # prediction dataframe
-    reg_pred_y_df = pd.DataFrame(predictions)
-    reg_pred_y_df['y_test'] = pd.Series(y_test)
+        # init values to be stored
+        modelnames = []
+        r2_scores = []
+        mae_scores = []
+        predictions = {}
+        residuals = {}
+        
+        # loop through models
+        for i in regression_models:
+            m_reg = regression_models[i]
+            m_reg.fit(X_train, y_train)
 
-    # residual dataframe
-    reg_res_y_df = pd.DataFrame(residuals)
-    reg_res_y_df['y_test'] = pd.Series(y_test)
+            y_test_predict = m_reg.predict(X_test)
+            mae = mean_absolute_error(y_test_predict, y_test)
+            r2 = m_reg.score(X_test, y_test)
+
+            modelnames.append(i)
+            r2_scores.append(round(r2, 3))
+            mae_scores.append(round(mae, 2))
+            predictions[i] = y_test_predict
+            residuals[i] = (y_test_predict - y_test)
+            
+        # create score dataframe
+        reg_scores_df = pd.DataFrame({'Model': modelnames, 'R2': r2_scores, 'MAE': mae_scores})
+        reg_scores_df = reg_scores_df.sort_values(by='R2', ascending = False).reset_index().drop(columns=['index'])
+        R2_floor = 0.0
+        reg_scores_df['R2_floored_0'] = np.maximum(reg_scores_df['R2'], R2_floor)
+
+        # create prediction dataframe
+        reg_pred_y_df = pd.DataFrame(predictions)
+        reg_pred_y_df['y_test'] = pd.Series(y_test)
+        
+        # create residual dataframe
+        reg_res_y_df = pd.DataFrame(residuals)
+        reg_res_y_df['y_test'] = pd.Series(y_test)
+        
+        # return the 3 dataframes
+        return reg_scores_df, reg_pred_y_df, reg_res_y_df
+
+
+    reg_scores_df, reg_pred_y_df, reg_res_y_df = reg_models_comparison(X_train, X_test, y_train, y_test)
 
     # plot model scores
     fig = px.bar(reg_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0')
