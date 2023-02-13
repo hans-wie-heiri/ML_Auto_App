@@ -51,6 +51,7 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 
 st.subheader("choose the data")
 
+
 csv_options = {
     'winequality': ['winequality-red.csv', ';'],
     'california housing': ['https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv', ','],
@@ -59,18 +60,26 @@ csv_options = {
 }
 
 csv_name = [i for i in csv_options]
-use_csv_name = st.selectbox('select dataset', options= csv_name)
+
+
+use_csv_name = st.selectbox('**select dataset from List**', options= csv_name)
+uploaded_file = st.file_uploader("**or upload your own**")
+
 
 @st.cache_data(ttl = time_to_live_cache)  # Add the caching decorator
 def load_data(url, sep):
     df = pd.read_csv(url, sep)
     return df
 
-df = load_data(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
-
+if uploaded_file is None:
+    df = load_data(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
+    df_name = use_csv_name
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+    df_name = str(uploaded_file.name)
 
 ## head the data
-st.subheader("first entries of the dataframe")
+st.subheader("first entries of the dataframe - " + df_name)
 st.dataframe(df.head(10).style.set_precision(2))
 n_row, n_col = df.shape
 st.write(n_col, " features, ", n_row, " rows, ", df.size, " total elements")
@@ -430,6 +439,39 @@ if (start_clas_models or (st.session_state.start_clas_models_state and check_y_n
     xlab = list(clas_label_df[use_clas_model])
     ylab = xlab
 
-    fig = px.imshow(cm, x= xlab, y=ylab, text_auto=True, color_continuous_scale=px.colors.sequential.Blues).update_layout(
+    fig = px.imshow(cm, x= xlab, y=ylab, text_auto=True, color_continuous_scale=px.colors.sequential.Blues,
+    title= "Confusion Matrix - " + use_clas_model).update_layout(
     xaxis_title="predicted label", yaxis_title="true label")
     st.plotly_chart(fig)
+
+    fig = px.histogram(clas_pred_y_df, x = 'y_test', title = 'Histogram of True Values -' + use_clas_model).update_layout(
+    xaxis_title="True Values")
+    st.plotly_chart(fig)
+
+    fig = px.histogram(clas_pred_y_df, x = use_clas_model, title = 'Histogram of Predicted Values - ' + use_clas_model).update_layout(
+    xaxis_title="Predicted Values")
+    st.plotly_chart(fig)
+
+    @st.cache_data(ttl = time_to_live_cache) 
+    def clas_score_label(clas_pred_y_df):
+        label_list = list(clas_pred_y_df['y_test'].unique())
+        precision_list = []
+        recall_list = []
+
+        for i in label_list:
+            sub_df_prec = clas_pred_y_df[clas_pred_y_df['RandomForestClassifier'] == i]
+            precision = precision_score(sub_df_prec['y_test'], sub_df_prec['RandomForestClassifier'], average='micro')
+            precision_list.append(precision)
+
+            sub_df_reca = clas_pred_y_df[clas_pred_y_df['y_test'] == i]
+            recall = recall_score(sub_df_reca['y_test'], sub_df_reca['RandomForestClassifier'], average='micro')
+            recall_list.append(recall)
+
+        score_label_df = pd.DataFrame({'Label': label_list, 'Precision' : precision_list, 'Recall': recall_list})
+        score_label_df['F1'] = 2 * (score_label_df['Precision'] * score_label_df['Recall']) / (score_label_df['Precision'] + score_label_df['Recall'])
+        return score_label_df
+
+    score_label_df = clas_score_label(clas_pred_y_df)
+
+    st.markdown('**Scores per Category**')
+    st.dataframe(score_label_df)
