@@ -232,11 +232,16 @@ if "start_reg_models_state" not in st.session_state :
 if "y_var_user" not in st.session_state:
     st.session_state.y_var_user = us_y_var
 
-check_y_no_change = st.session_state.y_var_user == us_y_var
+if "x_var_user" not in st.session_state:
+    st.session_state.x_var_user = us_x_var
 
-if (start_reg_models or (st.session_state.start_reg_models_state and check_y_no_change)):
+check_y_no_change = st.session_state.y_var_user == us_y_var
+check_x_no_change = st.session_state.x_var_user == us_x_var
+
+if (start_reg_models or (st.session_state.start_reg_models_state and check_y_no_change and check_x_no_change)):
     st.session_state.start_reg_models_state = True
     st.session_state.y_var_user = us_y_var
+    st.session_state.x_var_user = us_x_var
 
     @st.cache_data(ttl = time_to_live_cache) 
     def split_normalize(X_df, y_ser):
