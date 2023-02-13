@@ -30,6 +30,9 @@ layout = 'centered' # derfault but can be chenged to wide
 st.set_page_config(page_title=page_title, page_icon=page_icon, layout=layout)
 st.title(page_title + " " + page_icon)
 
+# Cache
+time_to_live_cache = 3600 # Cache data for 1 hour (=3600 seconds)
+
 # ------------- hide streamlit style --------------
 
 hide_st_style = """
@@ -49,15 +52,30 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 st.subheader("choose the data")
 
 csv_options = {
-    'california housing': ['https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv', ','],
     'winequality': ['winequality-red.csv', ';'],
+    'california housing': ['https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv', ','],
     'breast cancer': ['breast_cancer.csv', ','], 
     'bioactivity acetylcholinesterase': ['acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', ',']
 }
 
 csv_name = [i for i in csv_options]
 use_csv_name = st.selectbox('select dataset', options= csv_name)
-df = pd.read_csv(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
+
+@st.cache_data(ttl = time_to_live_cache)  # Add the caching decorator
+def load_data(url, sep):
+    df = pd.read_csv(url, sep)
+    return df
+
+df = load_data(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
+
+# @st.cache_data 
+# def load_data(url):
+#     df = pd.read_csv(url)  # 👈 Download the data
+#     return df
+
+# df = load_data("https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv")
+
+
 
 ## head the data
 st.subheader("first entries of the dataframe")
