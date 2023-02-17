@@ -214,6 +214,7 @@ st.dataframe(X_df.head().style.set_precision(2))
 
 st.markdown("""---""")
 
+us_test_size = st.number_input('What % of data do you want to use as test size?', 0.01, 0.99, value=0.2)
 
 # ------------- Launch model calculation --------------
 
@@ -226,14 +227,18 @@ if "y_var_user" not in st.session_state:
 if "x_var_user" not in st.session_state:
     st.session_state.x_var_user = us_x_var
 
+if "test_size_user" not in st.session_state:
+    st.session_state.test_size_user = us_test_size
+
 check_y_no_change = st.session_state.y_var_user == us_y_var
 check_x_no_change = st.session_state.x_var_user == us_x_var
+check_test_size_no_change = st.session_state.test_size_user == us_test_size
 
 
 # function for splitting, normalizing data that outputs arrays
 @st.cache_data(ttl = time_to_live_cache) 
-def split_normalize(X_df, y_ser):
-    X_train_df, X_test_df, y_train_df, y_test_df = train_test_split(X_df, y_ser, random_state=0, test_size=0.25)
+def split_normalize(X_df, y_ser, us_test_size):
+    X_train_df, X_test_df, y_train_df, y_test_df = train_test_split(X_df, y_ser, random_state=0, test_size= us_test_size)
 
     scaler = MinMaxScaler()
     X_train = scaler.fit_transform(X_train_df)
@@ -265,12 +270,15 @@ if "start_reg_models_state" not in st.session_state :
     st.session_state.start_reg_models_state = False
     
 
-if (start_reg_models or (st.session_state.start_reg_models_state and check_y_no_change and check_x_no_change)):
+if (start_reg_models or (st.session_state.start_reg_models_state 
+                         and check_y_no_change 
+                         and check_x_no_change
+                         and check_test_size_no_change)):
     st.session_state.start_reg_models_state = True
     st.session_state.y_var_user = us_y_var
     st.session_state.x_var_user = us_x_var
 
-    X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser)
+    X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size)
 
     @st.cache_data(ttl = time_to_live_cache) 
     def reg_models_comparison(X_train, X_test, y_train, y_test):
