@@ -56,7 +56,8 @@ csv_options = {
     'winequality': ['winequality-red.csv', ';'],
     'california housing': ['https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv', ','],
     'breast cancer': ['breast_cancer.csv', ','], 
-    'bioactivity acetylcholinesterase': ['acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', ',']
+    'bioactivity acetylcholinesterase': ['acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', ','],
+    'energy consumption hourly': ['https://raw.githubusercontent.com/archd3sai/Hourly-Energy-Consumption-Prediction/master/PJME_hourly.csv' , ',']
 }
 
 csv_name = [i for i in csv_options]
@@ -134,11 +135,59 @@ elif len(num_cols) > 0:
 elif len(cat_cols) > 0:
     df = df[cat_cols].fillna(df[cat_cols].mode())
 
-# dummie code user selected cat columns
 
+def datetime_candidate_col(df):
+    df_datetime_candid = df.copy()
+    for col in df_datetime_candid.columns:
+        if df_datetime_candid[col].dtype == 'object':
+            # try to convert to date and if it fails leave as is
+            try:
+                df_datetime_candid[col] = pd.to_datetime(df_datetime_candid[col])
+            except (ValueError, TypeError):
+                pass
+    date_candid_cols = df_datetime_candid.select_dtypes(include=['datetime64']).columns
+    return list(date_candid_cols)
+
+date_candid_cols = datetime_candidate_col(df)
+
+# change user selected date columns to datetime type
+us_date_var = st.multiselect(
+    'Which columns do you want to recode as dates?',
+    cat_cols, default=list(date_candid_cols))
+
+if len(us_date_var) > 0:
+    cat_cols_no_date = list(cat_cols)
+    cat_cols_no_date = set(cat_cols_no_date) - set(us_date_var)
+else:
+    cat_cols_no_date = list(cat_cols)
+
+datetimeformats = {'automatic': None,
+               'day.month.Year': "%d.%m.%Y",
+               'day/month/Year': "%d/%m/%Y",
+               'day-month-Year': "%d-%m-%Y",
+               'Year-month-day': "%Y-%m-%d"}
+
+if len(us_date_var) > 0:
+    us_datetimeformats = st.selectbox('Choose a datetime format', list(datetimeformats.keys()))
+
+if len(us_date_var) > 0:
+    for i in us_date_var:
+        try:
+            df[i] = pd.to_datetime(df[i], format = datetimeformats[us_datetimeformats])
+        except ValueError:
+            try:
+                df[i] = pd.to_datetime(df[i], format = None) # try converting with automatic date format
+                st.warning(df[i].name + ' was converted with default format because chosen format failed', icon="⚠️")
+            except ValueError:
+                pass
+                st.warning(df[i].name + ' could not be converted to date format', icon="⚠️")
+
+
+
+# dummie code user selected cat columns
 us_dummie_var = st.multiselect(
     'Which columns do you want to recode as dummies?',
-    cat_cols, default=list(cat_cols))
+    cat_cols_no_date, default=list(cat_cols_no_date))
 
 if len(us_dummie_var) > 0:
     # create dummies for cat variables
