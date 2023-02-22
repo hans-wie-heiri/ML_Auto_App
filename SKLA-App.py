@@ -263,7 +263,7 @@ st.dataframe(X_df.head().style.set_precision(2))
 
 st.markdown("""---""")
 
-us_test_size = st.number_input('What % of data do you want to use as test size?', 0.01, 0.99, value=0.2)
+us_test_size = st.number_input('What % of data do you want to use as test size?', 0.01, 0.99, value=0.20)
 
 # ------------- Launch model calculation --------------
 
@@ -326,6 +326,7 @@ if (start_reg_models or (st.session_state.start_reg_models_state
     st.session_state.start_reg_models_state = True
     st.session_state.y_var_user = us_y_var
     st.session_state.x_var_user = us_x_var
+    st.session_state.test_size_user = us_test_size
 
     X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size)
 
@@ -429,12 +430,16 @@ if "start_clas_models_state" not in st.session_state :
     st.session_state.start_clas_models_state = False
     
 
-if (start_clas_models or (st.session_state.start_clas_models_state and check_y_no_change and check_x_no_change)):
+if (start_clas_models or (st.session_state.start_clas_models_state 
+                          and check_y_no_change 
+                          and check_x_no_change 
+                          and check_test_size_no_change)):
     st.session_state.start_clas_models_state = True
     st.session_state.y_var_user = us_y_var
     st.session_state.x_var_user = us_x_var
+    st.session_state.test_size_user = us_test_size
 
-    X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser)
+    X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size)
 
     @st.cache_data(ttl = time_to_live_cache) 
     def class_models_comparison(X_train, X_test, y_train, y_test):
