@@ -263,7 +263,16 @@ st.dataframe(X_df.head().style.set_precision(2))
 
 st.markdown("""---""")
 
-us_test_size = st.number_input('What % of data do you want to use as test size?', 0.01, 0.99, value=0.20)
+testsizes = {
+    '10%' : 0.10,
+    '20%' : 0.20,
+    '30%' : 0.30,
+    '40%' : 0.40,
+    '50%' : 0.50,
+}
+
+us_test_size_pct = st.radio('What % of data do you want to use as test size?', list(testsizes.keys()), index=1, horizontal = True)
+us_test_size = testsizes[us_test_size_pct]
 
 # ------------- Launch model calculation --------------
 
