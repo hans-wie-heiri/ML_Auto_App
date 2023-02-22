@@ -206,12 +206,29 @@ if len(converted_date_var) > 0:
 
 
 
+# safety for cat columns with a lot of uniques
 
+def col_with_n_uniques(df, col_list, n):
+    alotofuniques = []
+    for i in col_list:
+        if df[i].nunique() >= n:
+            alotofuniques.append(i)
+    return alotofuniques 
+
+# a lot is set to 100
+n = 100
+list_alotofuniques = col_with_n_uniques(df, cat_cols_no_date, n)
+
+dummy_default_list = set(cat_cols_no_date) - set(list_alotofuniques)
+
+if len(list_alotofuniques) > 0:
+    for i in list_alotofuniques:
+        st.warning(i + ' with type = object but more than 100 unique values', icon="⚠️")
 
 # dummie code user selected cat columns
 us_dummie_var = st.multiselect(
     'Which columns do you want to recode as dummies?',
-    cat_cols_no_date, default=list(cat_cols_no_date))
+    cat_cols_no_date, default= list(dummy_default_list))
 
 if len(us_dummie_var) > 0:
     # create dummies for cat variables
@@ -226,6 +243,7 @@ if len(us_dummie_var) > 0:
     df = df.drop(df[us_dummie_var], axis = 1)
     #concat df and cat variables
     df = pd.concat([df, df_dummies], axis = 1)
+
 
 st.subheader("dataframe after cleaning")
 st.dataframe(df.head().style.set_precision(2))
