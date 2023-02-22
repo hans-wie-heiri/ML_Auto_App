@@ -170,17 +170,41 @@ datetimeformats = {'automatic': None,
 if len(us_date_var) > 0:
     us_datetimeformats = st.selectbox('Choose a datetime format', list(datetimeformats.keys()))
 
+converted_date_var = []
+
 if len(us_date_var) > 0:
+
     for i in us_date_var:
         try:
             df[i] = pd.to_datetime(df[i], format = datetimeformats[us_datetimeformats])
+            converted_date_var.append(df[i].name)
         except ValueError:
             try:
                 df[i] = pd.to_datetime(df[i], format = None) # try converting with automatic date format
                 st.warning(df[i].name + ' was converted with default format because chosen format failed', icon="⚠️")
+                converted_date_var.append(df[i].name)
             except ValueError:
                 pass
                 st.warning(df[i].name + ' could not be converted to date format', icon="⚠️")
+
+if len(converted_date_var) > 0:
+    def create_time_features(df):
+        df = df.copy()
+        for i in converted_date_var:
+            df[i+'_hour'] = df[i].dt.hour
+            df[i+'_dayofweek'] = df[i].dt.dayofweek
+            df[i+'_quarter'] = df[i].dt.quarter
+            df[i+'_month'] = df[i].dt.month
+            df[i+'_year'] = df[i].dt.year
+            df[i+'_dayofyear'] = df[i].dt.dayofyear
+            df[i+'_dayofmonth'] = df[i].dt.day
+            df[i+'_weekofyear'] = df[i].dt.isocalendar().week
+            df.drop(i , axis = 1, inplace = True)
+        return df
+    
+    df = create_time_features(df)
+
+
 
 
 
