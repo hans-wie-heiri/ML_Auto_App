@@ -19,6 +19,7 @@ from sklearn.dummy import DummyRegressor, DummyClassifier
 from sklearn.svm import SVR, SVC, LinearSVR
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.feature_selection import VarianceThreshold
+from sklearn.decomposition import PCA
 
 
 # ------------- Settings --------------
@@ -39,10 +40,10 @@ hide_st_style = """
 <style>
 
 footer {visibility: hidden;}
-header {visibility: hidden;}
 </style>
 """
 
+# header {visibility: hidden;}
 # #MainMenu {visibility: hidden;} this would be another option (inkl.# )
 
 st.markdown(hide_st_style, unsafe_allow_html=True)
@@ -122,6 +123,7 @@ st.markdown("""---""")
 num_cols = df.select_dtypes(include=np.number).columns
 cat_cols = df.select_dtypes(include=['object', 'bool']).columns
 
+
 # fill NA
 
 if len(num_cols) > 0 and len(cat_cols) > 0:
@@ -135,6 +137,36 @@ elif len(num_cols) > 0:
 elif len(cat_cols) > 0:
     df = df[cat_cols].fillna(df[cat_cols].mode())
 
+
+# PCA
+
+us_pca_var = st.multiselect(
+    'Do you want to do a PCA on some columns?',
+    num_cols, default=None)
+
+def pca_on_us_col(df):
+    pca_df = df[us_pca_var]
+
+    scaler = StandardScaler().set_output(transform="pandas")
+    pca_scaled_df = scaler.fit_transform(pca_df)
+    
+    pca = PCA(0.95).set_output(transform="pandas") # keep explaning dimensions 95% of the variance 
+    pca_transformed_df = pca.fit_transform(pca_scaled_df)
+    pca_expl = pca.explained_variance_ratio_ # variance explained by the dimension
+    pca_vars = [str(round(i, 2)) for i in pca_expl]
+    for i in range(len(pca_vars)):
+        st.write('pca' , i , ': explained variance = ' , pca_vars[i])
+
+    df = df.drop(df[us_pca_var], axis = 1)
+    df = pd.concat([df, pca_transformed_df], axis = 1)
+    return df
+
+if len(us_pca_var) > 0:
+    df = pca_on_us_col(df)
+    
+
+
+# find candidates for datetime conversion
 
 def datetime_candidate_col(df):
     df_datetime_candid = df.copy()
@@ -150,7 +182,9 @@ def datetime_candidate_col(df):
 
 date_candid_cols = datetime_candidate_col(df)
 
-# change user selected date columns to datetime type
+
+# change user selected date columns to datetime 
+
 us_date_var = st.multiselect(
     'Which columns do you want to recode as dates?',
     cat_cols, default=list(date_candid_cols))
@@ -175,17 +209,25 @@ converted_date_var = []
 if len(us_date_var) > 0:
 
     for i in us_date_var:
+        before_date = str(df[i][0])
         try:
             df[i] = pd.to_datetime(df[i], format = datetimeformats[us_datetimeformats])
             converted_date_var.append(df[i].name)
-        except ValueError:
+            after_date = str(df[i][0])
+            st.write(i + ': before = ' + before_date + ' -- after = ' + after_date + ' -- new type = ' + str(df[i].dtype))
+        except (ValueError, TypeError):
             try:
                 df[i] = pd.to_datetime(df[i], format = None) # try converting with automatic date format
                 st.warning(df[i].name + ' was converted with default format because chosen format failed', icon="⚠️")
                 converted_date_var.append(df[i].name)
-            except ValueError:
+                after_date = str(df[i][0])
+                st.write(i + ': before = ' + before_date + ' -- after = ' + after_date + ' -- new type = ' + str(df[i].dtype))
+            except (ValueError, TypeError):
                 pass
                 st.warning(df[i].name + ' could not be converted to date format', icon="⚠️")
+
+
+# extract features from datetime 
 
 if len(converted_date_var) > 0:
     def create_time_features(df):
@@ -225,7 +267,9 @@ if len(list_alotofuniques) > 0:
     for i in list_alotofuniques:
         st.warning(i + ' with type = object but more than 100 unique values', icon="⚠️")
 
+
 # dummie code user selected cat columns
+
 us_dummie_var = st.multiselect(
     'Which columns do you want to recode as dummies?',
     cat_cols_no_date, default= list(dummy_default_list))
@@ -268,6 +312,7 @@ x_options_df = df.drop(columns=[us_y_var])
 
 st.subheader('Choose your X')
 
+st.write('Do you want to drop Columns with 0 variance?')
 use_variance_threshold = st.button("drop columns with 0 variance")
 
 if use_variance_threshold:
