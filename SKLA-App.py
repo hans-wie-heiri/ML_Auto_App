@@ -118,6 +118,9 @@ st.markdown("""---""")
 
 # ------------- Data Cleaning --------------
 
+st.subheader('Data cleaning')
+st.write("NA's will automatically be filled. Numerical variables by their mean and categorical by their mode.")
+
 # find column type
 
 num_cols = df.select_dtypes(include=np.number).columns
@@ -230,6 +233,9 @@ if len(us_date_var) > 0:
 # extract features from datetime 
 
 if len(converted_date_var) > 0:
+    # save the first var as index for time series analysis
+    ts_index = df[converted_date_var[0]]
+
     def create_time_features(df):
         df = df.copy()
         for i in converted_date_var:
@@ -394,15 +400,78 @@ def split_normalize(X_df, y_ser, us_test_size):
     
     return(X_train, X_test, y_train, y_test)
 
-
-#--- Regression models
-
+# function for running and comparing regression models
 
 regression_models = {'RandomForestRegressor': RandomForestRegressor(),
           'LinearRegression': LinearRegression(),
           'GradientBoostingRegressor': GradientBoostingRegressor(),
           'HistGradientBoostingRegressor': HistGradientBoostingRegressor(),
           'DummyRegressor': DummyRegressor()}
+
+@st.cache_data(ttl = time_to_live_cache) 
+def reg_models_comparison(X_train, X_test, y_train, y_test):
+
+    # init values to be stored
+    modelnames = []
+    r2_scores = []
+    mae_scores = []
+    predictions = {}
+    residuals = {}
+    
+    # loop through models
+    for i in regression_models:
+        m_reg = regression_models[i]
+        m_reg.fit(X_train, y_train)
+
+        y_test_predict = m_reg.predict(X_test)
+        mae = mean_absolute_error(y_test_predict, y_test)
+        r2 = m_reg.score(X_test, y_test)
+
+        modelnames.append(i)
+        r2_scores.append(round(r2, 4))
+        mae_scores.append(round(mae, 4))
+        predictions[i] = y_test_predict
+        residuals[i] = (y_test_predict - y_test)
+        
+    # create score dataframe
+    reg_scores_df = pd.DataFrame({'Model': modelnames, 'R2': r2_scores, 'MAE': mae_scores})
+    reg_scores_df = reg_scores_df.sort_values(by='R2', ascending = False).reset_index().drop(columns=['index'])
+    R2_floor = 0.0
+    reg_scores_df['R2_floored_0'] = np.maximum(reg_scores_df['R2'], R2_floor)
+
+    # create prediction dataframe
+    reg_pred_y_df = pd.DataFrame(predictions)
+    reg_pred_y_df['y_test'] = pd.Series(y_test)
+    
+    # create residual dataframe
+    reg_res_y_df = pd.DataFrame(residuals)
+    reg_res_y_df['y_test'] = pd.Series(y_test)
+    
+    # return the 3 dataframes
+    return reg_scores_df, reg_pred_y_df, reg_res_y_df
+
+# function for splitting (last 1 - test size percent of time series), that outputs arrays for time series
+@st.cache_data(ttl = time_to_live_cache) 
+def split_timeseries(X_df_ts, y_ser_ts, us_test_size):
+    train_size = (1-us_test_size)
+    
+    X_train_df_ts = X_df_ts[:round(len(X_df_ts)*train_size)]
+    X_test_df_ts = X_df_ts[-(len(X_df_ts)-round(len(X_df_ts)*train_size)):]
+    y_train_df_ts = y_ser_ts[:round(len(y_ser_ts)*train_size)]
+    y_test_df_ts = y_ser_ts[-(len(df)-round(len(y_ser_ts)*train_size)):]
+
+    scaler = MinMaxScaler()
+    X_train_ts = scaler.fit_transform(X_train_df_ts)
+    X_test_ts = scaler.transform(X_test_df_ts)
+
+    y_train_ts = y_train_df_ts.to_numpy()
+    y_test_ts = y_test_df_ts.to_numpy()
+    
+    return(X_train_ts, X_test_ts, y_train_ts, y_test_ts)
+
+
+#--- Regression models
+
 
 st.subheader("Launch auto regression models")
 
@@ -424,51 +493,10 @@ if (start_reg_models or (st.session_state.start_reg_models_state
     st.session_state.x_var_user = us_x_var
     st.session_state.test_size_user = us_test_size
 
+    # run splitting
     X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size)
 
-    @st.cache_data(ttl = time_to_live_cache) 
-    def reg_models_comparison(X_train, X_test, y_train, y_test):
-    
-        # init values to be stored
-        modelnames = []
-        r2_scores = []
-        mae_scores = []
-        predictions = {}
-        residuals = {}
-        
-        # loop through models
-        for i in regression_models:
-            m_reg = regression_models[i]
-            m_reg.fit(X_train, y_train)
-
-            y_test_predict = m_reg.predict(X_test)
-            mae = mean_absolute_error(y_test_predict, y_test)
-            r2 = m_reg.score(X_test, y_test)
-
-            modelnames.append(i)
-            r2_scores.append(round(r2, 4))
-            mae_scores.append(round(mae, 4))
-            predictions[i] = y_test_predict
-            residuals[i] = (y_test_predict - y_test)
-            
-        # create score dataframe
-        reg_scores_df = pd.DataFrame({'Model': modelnames, 'R2': r2_scores, 'MAE': mae_scores})
-        reg_scores_df = reg_scores_df.sort_values(by='R2', ascending = False).reset_index().drop(columns=['index'])
-        R2_floor = 0.0
-        reg_scores_df['R2_floored_0'] = np.maximum(reg_scores_df['R2'], R2_floor)
-
-        # create prediction dataframe
-        reg_pred_y_df = pd.DataFrame(predictions)
-        reg_pred_y_df['y_test'] = pd.Series(y_test)
-        
-        # create residual dataframe
-        reg_res_y_df = pd.DataFrame(residuals)
-        reg_res_y_df['y_test'] = pd.Series(y_test)
-        
-        # return the 3 dataframes
-        return reg_scores_df, reg_pred_y_df, reg_res_y_df
-
-
+    # run model and compare
     reg_scores_df, reg_pred_y_df, reg_res_y_df = reg_models_comparison(X_train, X_test, y_train, y_test)
 
     # plot model scores
@@ -633,3 +661,44 @@ if (start_clas_models or (st.session_state.start_clas_models_state
 
     st.markdown('**Scores per Category**')
     st.dataframe(score_label_df)
+
+
+#--- Time Series models
+
+if len(converted_date_var) > 0:
+
+    start_ts_models = st.button("Start Time Series Analysis")
+
+    # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
+
+    if "start_ts_models_state" not in st.session_state :
+        st.session_state.start_ts_models_state = False
+        
+
+    if (start_ts_models or (st.session_state.start_ts_models_state 
+                            and check_y_no_change 
+                            and check_x_no_change
+                            and check_test_size_no_change)):
+        st.session_state.start_ts_models_state = True
+        st.session_state.y_var_user = us_y_var
+        st.session_state.x_var_user = us_x_var
+        st.session_state.test_size_user = us_test_size
+
+        df_ts = df.set_index(ts_index)
+        y_ser_ts = df_ts[us_y_var]
+        X_df_ts = df_ts[us_x_var]
+
+        X_train_ts, X_test_ts, y_train_ts, y_test_ts = split_timeseries(X_df_ts, y_ser_ts, us_test_size)
+
+        ts_scores_df, ts_pred_y_df, ts_res_y_df = reg_models_comparison(X_train_ts, X_test_ts, y_train_ts, y_test_ts)
+
+        # plot model scores
+        fig = px.bar(ts_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
+            title="Model Comparison on R2 (floored at 0)")
+        fig['layout']['yaxis']['autorange'] = "reversed"
+        st.plotly_chart(fig)
+
+        # show tabel of model scores
+        st.dataframe(ts_scores_df.style.set_precision(4))
+
+
