@@ -458,7 +458,10 @@ def split_timeseries(X_df_ts, y_ser_ts, us_test_size):
     X_train_df_ts = X_df_ts[:round(len(X_df_ts)*train_size)]
     X_test_df_ts = X_df_ts[-(len(X_df_ts)-round(len(X_df_ts)*train_size)):]
     y_train_df_ts = y_ser_ts[:round(len(y_ser_ts)*train_size)]
-    y_test_df_ts = y_ser_ts[-(len(df)-round(len(y_ser_ts)*train_size)):]
+    y_test_df_ts = y_ser_ts[-(len(y_ser_ts)-round(len(y_ser_ts)*train_size)):]
+    
+    train_ts_index = y_train_df_ts.index
+    test_ts_index = y_test_df_ts.index
 
     scaler = MinMaxScaler()
     X_train_ts = scaler.fit_transform(X_train_df_ts)
@@ -467,7 +470,7 @@ def split_timeseries(X_df_ts, y_ser_ts, us_test_size):
     y_train_ts = y_train_df_ts.to_numpy()
     y_test_ts = y_test_df_ts.to_numpy()
     
-    return(X_train_ts, X_test_ts, y_train_ts, y_test_ts)
+    return(X_train_ts, X_test_ts, y_train_ts, y_test_ts, train_ts_index, test_ts_index)
 
 
 #--- Regression models
@@ -667,6 +670,7 @@ if (start_clas_models or (st.session_state.start_clas_models_state
 
 if len(converted_date_var) > 0:
 
+    st.subheader("Launch auto time series models")
     start_ts_models = st.button("Start Time Series Analysis")
 
     # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
@@ -684,11 +688,24 @@ if len(converted_date_var) > 0:
         st.session_state.x_var_user = us_x_var
         st.session_state.test_size_user = us_test_size
 
+        # remove dupplicate function that keeps last version of index
+        def remove_duplicated_index(df):
+            all_dup = df.index.duplicated(keep=False) # all duplicates will be True rest False
+            last_dup = df.index.duplicated(keep='last') # last duplicates will again be True rest False
+            keep_last = all_dup == last_dup # lose duplicates that are not the last (first True then False = False) 
+            df_no_dup = df[keep_last]
+            return df_no_dup
+        
+        # create a time series dataframe wit datetime index without duplicates
         df_ts = df.set_index(ts_index)
+        df_ts = remove_duplicated_index(df_ts)
+        df_ts = df_ts.sort_index()
+
+
         y_ser_ts = df_ts[us_y_var]
         X_df_ts = df_ts[us_x_var]
 
-        X_train_ts, X_test_ts, y_train_ts, y_test_ts = split_timeseries(X_df_ts, y_ser_ts, us_test_size)
+        X_train_ts, X_test_ts, y_train_ts, y_test_ts, train_ts_index, test_ts_index = split_timeseries(X_df_ts, y_ser_ts, us_test_size)
 
         ts_scores_df, ts_pred_y_df, ts_res_y_df = reg_models_comparison(X_train_ts, X_test_ts, y_train_ts, y_test_ts)
 
@@ -700,5 +717,14 @@ if len(converted_date_var) > 0:
 
         # show tabel of model scores
         st.dataframe(ts_scores_df.style.set_precision(4))
+
+        use_ts_model = st.radio('show results for:', ts_scores_df.Model)
+
+        ts_pred_y_df.set_index(test_ts_index, inplace=True)
+        pred_df_ts = pd.concat([df_ts, ts_pred_y_df], axis = 1)
+
+        pred_df_ts['Datetime_index'] = pred_df_ts.index # two y doesn't work on index appearently
+        fig = px.line(pred_df_ts, x='Datetime_index', y=[us_y_var, use_ts_model])
+        fig.show()
 
 
