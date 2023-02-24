@@ -58,7 +58,8 @@ csv_options = {
     'california housing': ['https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv', ','],
     'breast cancer': ['breast_cancer.csv', ','], 
     'bioactivity acetylcholinesterase': ['acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', ','],
-    'energy consumption hourly': ['https://raw.githubusercontent.com/archd3sai/Hourly-Energy-Consumption-Prediction/master/PJME_hourly.csv' , ',']
+    'energy consumption hourly': ['https://raw.githubusercontent.com/archd3sai/Hourly-Energy-Consumption-Prediction/master/PJME_hourly.csv' , ','],
+    'Konsumentenpreise Index Mai 2000': ['Konsumentenpreise_Index_Mai_2000.csv', ';']
 }
 
 csv_name = [i for i in csv_options]
@@ -724,7 +725,26 @@ if len(converted_date_var) > 0:
         pred_df_ts = pd.concat([df_ts, ts_pred_y_df], axis = 1)
 
         pred_df_ts['Datetime_index'] = pred_df_ts.index # two y doesn't work on index appearently
-        fig = px.line(pred_df_ts, x='Datetime_index', y=[us_y_var, use_ts_model])
-        fig.show()
+        fig = px.line(pred_df_ts, x='Datetime_index', y=[us_y_var, use_ts_model]).update_layout(
+                xaxis_title="Datetime Index", 
+                yaxis_title= (us_y_var + " and Prediction"),
+                title = 'Time Series and Prediction')
+        st.plotly_chart(fig)
 
+        ts_res_y_df.set_index(test_ts_index, inplace=True)
+        
+        # plot histogramm of residuals
+        fig = px.histogram(ts_res_y_df, x = use_ts_model,
+                    title="Histogramm of Residuals - " + use_ts_model).update_layout(
+                    xaxis_title="residuals")
+
+        st.plotly_chart(fig)
+
+        # plot residuals and y test
+        ts_res_y_df['Datetime_index'] = ts_res_y_df.index # two y doesn't work on index appearently
+        fig = px.bar(ts_res_y_df, x = 'Datetime_index', y = use_ts_model,
+                    title="Residuals over Datetime - " + use_ts_model).update_layout(
+                    xaxis_title="Datetime Index", yaxis_title="residuals")
+
+        st.plotly_chart(fig)
 
