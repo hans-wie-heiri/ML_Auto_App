@@ -56,6 +56,8 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # ------------- Get data in and show it --------------
 
+st.header("data selection and first glance")
+st.write('')
 st.subheader("choose the data")
 
 
@@ -122,12 +124,22 @@ if use_cor_matrix:
     fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues) # reverse color by adding "_r" (eg. Blues_r) 
     st.plotly_chart(fig)
 
+st.subheader("plot selcted features")
+
+us_x_axis = st.selectbox('select x-Axis', list(df.columns))
+us_y_axis = st.selectbox('select y-Axis', list(df.columns), index = (len(list(df.columns))-1))
+
+# plot user selected features
+fig = px.scatter(df, x = us_x_axis, y = us_y_axis, 
+            title= 'Plot Selected Feaures').update_layout(
+            xaxis_title= us_x_axis, yaxis_title= us_y_axis)
+st.plotly_chart(fig)
 
 st.markdown("""---""")
 
-# ------------- Data Cleaning --------------
+# ------------- Data Preprocessinng --------------
 
-st.subheader('Data cleaning')
+st.header('Data Preprocessing')
 st.write("NA's will automatically be filled. Numerical variables by their mean and categorical by their mode.")
 
 # find column type
@@ -312,6 +324,9 @@ st.markdown("""---""")
 
 # ------------- Data Splitting, Scaling and transform to array for model --------------
 
+st.header('Dependent and Independent Variable Selection')
+st.write('')
+
 st.subheader('Choose your Y')
 
 us_y_var = st.selectbox(
@@ -364,6 +379,9 @@ st.dataframe(X_df.head().style.set_precision(2))
 
 
 st.markdown("""---""")
+
+st.header('Launch the desired models')
+st.write('Time Series analysis is only callable if at least one feature has been recoded as date.')
 
 testsizes = {
     '10%' : 0.10,
