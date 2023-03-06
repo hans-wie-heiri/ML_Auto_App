@@ -25,11 +25,17 @@ from sklearn.decomposition import PCA
 # ------------- Settings --------------
 
 page_title = 'SK Learn Automation'
+page_description = 'This App automates a Data Science analysis with the sk-learn API. \
+It is functional and automates the process steps for a small data science project or a first shot at model selection. \
+The application does not claim to replace a full and comprehensive Data Science Project. \
+The application allows regression, classification and time series analysis with machine learning algorithms.'
+
 page_icon = ':eyeglasses:' # emoji : https://www.webfx.com/tools/emoji-cheat-sheet/
 layout = 'centered' # derfault but can be chenged to wide
 
 st.set_page_config(page_title=page_title, page_icon=page_icon, layout=layout)
 st.title(page_title + " " + page_icon)
+st.write(page_description)
 
 # Cache
 time_to_live_cache = 3600 # Cache data for 1 hour (=3600 seconds)
@@ -93,6 +99,7 @@ def show_info(df):
     colnames = []
     is_na = []
     is_not_na = []
+    is_unique = []
     is_type = []
     for i in df.columns:
         colnames.append(i)
@@ -100,7 +107,8 @@ def show_info(df):
         n_na = df[i].isna().sum()
         is_na.append(n_na)
         is_not_na.append(len(df[i]) - n_na)
-    df_col_info = pd.DataFrame({'columns' : colnames, 'n_non_null': is_not_na, 'n_null': is_na, 'type': is_type})
+        is_unique.append(len(df[i].unique()))
+    df_col_info = pd.DataFrame({'columns' : colnames, 'n_non_null': is_not_na, 'n_null': is_na, 'n_unique': is_unique, 'type': is_type})
     return df_col_info
 
 st.subheader("column info")
