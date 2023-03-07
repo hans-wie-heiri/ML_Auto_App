@@ -1,12 +1,12 @@
 # ------------- ToDo List --------------
-# - bug: variance threshhold crashes if not all cat are recoded as dummies
 # - Algo selection
 # - design
 # - crashproove
-# - select time space for time series testing 
+# - select time space for time series testing ?
 # - export model ?
 # - predict new data?
 # - feature importance ?
+# - add xg boost ?
 
 # ------------- Linbraries --------------
 
@@ -230,8 +230,8 @@ if n_duplicate_rows > 0:
 
 
     dup_handling = {
-        'drop dupplicate rows' : 'drop',
-        'leave as is' : 'leave'
+        'leave as is' : 'leave',
+        'drop dupplicate rows' : 'drop'
     }
 
     us_dup_handling = st.radio('How do you want to handle the dupplicate rows?', dup_handling.keys(), horizontal=True, index=0)
@@ -399,7 +399,6 @@ if len(us_dummie_var) > 0:
     df = df.drop(df[us_dummie_var], axis = 1)
     #concat df and cat variables
     df = pd.concat([df, df_dummies], axis = 1)
-    df = df.dropna()
 
 
 st.subheader("dataframe after cleaning")
@@ -478,6 +477,9 @@ classification models in turn, only if it is of type bool, object or int. \
 Time Series analysis is only callable if at least one feature has been recoded as date.'
 
 st.write(descr_model_launch)
+st.write("")
+
+st.subheader('Splitting and Scaling')
 
 # test size selection
 
@@ -552,7 +554,7 @@ regression_models = {'RandomForestRegressor': RandomForestRegressor(),
           'DummyRegressor': DummyRegressor()}
 
 @st.cache_data(ttl = time_to_live_cache) 
-def reg_models_comparison(X_train, X_test, y_train, y_test):
+def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
 
     # init values to be stored
     modelnames = []
@@ -562,7 +564,7 @@ def reg_models_comparison(X_train, X_test, y_train, y_test):
     residuals = {}
     
     # loop through models
-    for i in regression_models:
+    for i in us_reg_models:
         m_reg = regression_models[i]
         m_reg.fit(X_train, y_train)
 
@@ -622,8 +624,10 @@ def split_timeseries(X_df_ts, y_ser_ts, us_test_size, us_scaler_key):
 
 if us_y_var in reg_cols:
 
+    st.markdown("""---""")
     st.subheader("Launch auto regression models")
 
+    us_reg_models = st.multiselect('What regression models do you want to launch and compare?', regression_models.keys(), default= list(regression_models.keys()))
 
     start_reg_models = st.button("Start regression analysis")
 
@@ -648,7 +652,7 @@ if us_y_var in reg_cols:
         X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size, us_scaler_key)
 
         # run model and compare
-        reg_scores_df, reg_pred_y_df, reg_res_y_df = reg_models_comparison(X_train, X_test, y_train, y_test)
+        reg_scores_df, reg_pred_y_df, reg_res_y_df = reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models)
 
         # Titel
         st.subheader("Results for Regression Models on Testset")
@@ -702,8 +706,12 @@ if us_y_var in clas_cols:
                         'Perceptron': Perceptron()
                         }
 
+    st.markdown("""---""")
+
+    
     st.subheader("Launch auto classification models")
 
+    us_clas_models = st.multiselect('What classification models do you want to launch and compare?', classifier_models.keys(), default= list(classifier_models.keys()))
     start_clas_models = st.button("Start classification analysis")
 
     # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
@@ -726,7 +734,7 @@ if us_y_var in clas_cols:
         X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size, us_scaler_key)
 
         @st.cache_data(ttl = time_to_live_cache) 
-        def class_models_comparison(X_train, X_test, y_train, y_test):
+        def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
             
             # init values to be stored
             modelnames = []
@@ -739,7 +747,7 @@ if us_y_var in clas_cols:
 
             
             # loop through models
-            for i in classifier_models:
+            for i in us_clas_models:
                 m_clas = classifier_models[i]
                 m_clas.fit(X_train, y_train)
 
@@ -768,10 +776,11 @@ if us_y_var in clas_cols:
             # create class dataframe
             clas_label_df = pd.DataFrame(class_labels)
             
+            
             # return the 3 dataframes
             return clas_scores_df, clas_pred_y_df, clas_label_df
 
-        clas_scores_df, clas_pred_y_df, clas_label_df = class_models_comparison(X_train, X_test, y_train, y_test)
+        clas_scores_df, clas_pred_y_df, clas_label_df = class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models)
 
         # Titel
         st.subheader("Results for Classification Models on Testset")
@@ -782,22 +791,22 @@ if us_y_var in clas_cols:
 
         st.dataframe(clas_scores_df.style.set_precision(4))
 
-        use_clas_model = st.radio('show results for:', clas_scores_df.Model)
+        us_clas_model_result = st.radio('show results for:', clas_scores_df.Model)
 
-        cm = confusion_matrix(clas_pred_y_df['y_test'], clas_pred_y_df[use_clas_model])
-        xlab = list(clas_label_df[use_clas_model])
-        ylab = xlab
-
-        fig = px.imshow(cm, x= xlab, y=ylab, text_auto=True, color_continuous_scale=px.colors.sequential.Blues,
-        title= "Confusion Matrix - " + use_clas_model).update_layout(
-        xaxis_title="predicted label", yaxis_title="true label")
+        conf_matrix_df = pd.DataFrame(clas_pred_y_df.groupby([us_clas_model_result, 'y_test'])['y_test'].count())
+        conf_matrix_df.rename(columns={'y_test': "count"}, inplace=True)
+        conf_matrix_df.reset_index(inplace = True)
+        conf_matrix_df = conf_matrix_df.pivot(index='y_test', columns=us_clas_model_result)['count'].fillna(0)
+        fig = px.imshow(conf_matrix_df, x=conf_matrix_df.columns, y=conf_matrix_df.index, title= 'Confusionmatrix - ' + us_clas_model_result
+                        , text_auto=True, color_continuous_scale=px.colors.sequential.Blues).update_layout(
+                        xaxis_title="predicted label", yaxis_title="true label")
         st.plotly_chart(fig)
 
-        fig = px.histogram(clas_pred_y_df, x = 'y_test', title = 'Histogram of True Values -' + use_clas_model).update_layout(
+        fig = px.histogram(clas_pred_y_df, x = 'y_test', title = 'Histogram of True Values -' + us_clas_model_result).update_layout(
         xaxis_title="True Values")
         st.plotly_chart(fig)
 
-        fig = px.histogram(clas_pred_y_df, x = use_clas_model, title = 'Histogram of Predicted Values - ' + use_clas_model).update_layout(
+        fig = px.histogram(clas_pred_y_df, x = us_clas_model_result, title = 'Histogram of Predicted Values - ' + us_clas_model_result).update_layout(
         xaxis_title="Predicted Values")
         st.plotly_chart(fig)
 
@@ -830,7 +839,10 @@ if us_y_var in clas_cols:
 
 if len(converted_date_var) > 0:
 
+    st.markdown("""---""")
     st.subheader("Launch auto time series models")
+    us_ts_models = st.multiselect('What regression models do you want to launch and compare for the time series?', regression_models.keys(), default= list(regression_models.keys()))
+
     start_ts_models = st.button("Start Time Series Analysis")
 
     # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
@@ -870,7 +882,7 @@ if len(converted_date_var) > 0:
 
         X_train_ts, X_test_ts, y_train_ts, y_test_ts, train_ts_index, test_ts_index = split_timeseries(X_df_ts, y_ser_ts, us_test_size, us_scaler_key)
 
-        ts_scores_df, ts_pred_y_df, ts_res_y_df = reg_models_comparison(X_train_ts, X_test_ts, y_train_ts, y_test_ts)
+        ts_scores_df, ts_pred_y_df, ts_res_y_df = reg_models_comparison(X_train_ts, X_test_ts, y_train_ts, y_test_ts, us_ts_models)
 
         # Titel
         st.subheader("Results for Regression Models on Testset")
