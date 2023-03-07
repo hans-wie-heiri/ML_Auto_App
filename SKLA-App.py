@@ -134,15 +134,41 @@ if use_cor_matrix:
     fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues) # reverse color by adding "_r" (eg. Blues_r) 
     st.plotly_chart(fig)
 
+# Plot features
 st.subheader("Plot Selcted Features")
 
+plot_types = ['Scatter Plot', 'Histogramm', 'Line Plot', 'Box Plot', 'Heatmap of count']
+
+us_plot_type = st.selectbox('Select Plot Type', plot_types)
 us_x_axis = st.selectbox('select x-Axis', list(df.columns))
-us_y_axis = st.selectbox('select y-Axis', list(df.columns), index = (len(list(df.columns))-1))
+if us_plot_type != 'Histogramm':
+    us_y_axis = st.selectbox('select y-Axis', list(df.columns), index = (len(list(df.columns))-1))
 
 # plot user selected features
-fig = px.scatter(df, x = us_x_axis, y = us_y_axis, 
-            title= 'Scatterplot of Selected Features').update_layout(
-            xaxis_title= us_x_axis, yaxis_title= us_y_axis)
+
+if us_plot_type == 'Scatter Plot':
+    fig = px.scatter(df, x = us_x_axis, y = us_y_axis, 
+                title= 'Scatter plot of Selected Features').update_layout(
+                xaxis_title= us_x_axis, yaxis_title= us_y_axis)
+elif us_plot_type == 'Histogramm':
+    fig = px.histogram(df, x = us_x_axis, 
+                title= 'Histogramm plot of Selected Features').update_layout(
+                xaxis_title= us_x_axis, yaxis_title= 'count')
+elif us_plot_type == 'Line Plot':
+    fig = px.line(df, x = us_x_axis, y = us_y_axis, 
+                title= 'Line plot of Selected Features').update_layout(
+                xaxis_title= us_x_axis, yaxis_title= us_y_axis)
+elif us_plot_type == 'Box Plot':
+    fig = px.box(df, x = us_x_axis, y = us_y_axis, 
+                title= 'Box plot of Selected Features').update_layout(
+                xaxis_title= us_x_axis, yaxis_title= us_y_axis)
+elif us_plot_type == 'Heatmap of count':
+    heatmap_df = pd.DataFrame(df.groupby([us_x_axis, us_y_axis])[us_x_axis].count())
+    heatmap_df.rename(columns={us_x_axis: "count"}, inplace=True)
+    heatmap_df.reset_index(inplace = True)
+    heatmap_df = heatmap_df.pivot(index=us_y_axis, columns=us_x_axis)['count'].fillna(0)
+    fig = px.imshow(heatmap_df, x=heatmap_df.columns, y=heatmap_df.index, title= 'Heatmap of Count for Selected Features', text_auto=True, color_continuous_scale=px.colors.sequential.Blues)
+    
 st.plotly_chart(fig)
 
 st.markdown("""---""")
