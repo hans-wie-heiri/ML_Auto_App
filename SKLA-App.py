@@ -1,12 +1,13 @@
 # ------------- ToDo List --------------
 # - posiibility to delete NA rows (additional to fill)
-# - choose scaler
+# - possibility to delete duplicates
 # - Algo selection
 # - design
 # - crashproove
 # - select time space for time series testing 
 # - export model ?
 # - predict new data?
+# - feature importance ?
 
 # ------------- Linbraries --------------
 
@@ -149,7 +150,8 @@ st.markdown("""---""")
 # ------------- Data Preprocessinng --------------
 
 st.header('Data Preprocessing')
-st.write("NA's will automatically be filled. Numerical variables by their mean and categorical by their mode.")
+st.write("NA-values will automatically be filled (numerical variables by their mean and categorical by their mode) \
+         alternatively all rows with NA-values can droped.")
 
 # find column type
 
@@ -157,19 +159,29 @@ num_cols = df.select_dtypes(include=np.number).columns
 cat_cols = df.select_dtypes(include=['object', 'bool']).columns
 
 
-# fill NA
+# fill or drop NA
 
-if len(num_cols) > 0 and len(cat_cols) > 0:
-    # fill NA
-    df_num = df[num_cols].fillna(df[num_cols].mean())
-    df_cat = df[cat_cols].fillna(df[cat_cols].mode())
-    df = pd.concat([df_num, df_cat], axis = 1)
-# the elif repeat above steps but only for one kind of variables
-elif len(num_cols) > 0:
-    df = df[num_cols].fillna(df[num_cols].mean())
-elif len(cat_cols) > 0:
-    df = df[cat_cols].fillna(df[cat_cols].mode())
+NA_handling = {
+    'fill NA (mean/mode)' : 'fill_na',
+    'drop rows with NA' : 'drop_na'
+}
 
+us_na_handling = st.radio('Do you want to fill or drop the NA?', NA_handling.keys(), horizontal=True, index=0)
+
+if us_na_handling == 'fill NA (mean/mode)':
+    if len(num_cols) > 0 and len(cat_cols) > 0:
+        # fill NA
+        df_num = df[num_cols].fillna(df[num_cols].mean())
+        df_cat = df[cat_cols].fillna(df[cat_cols].mode())
+        df = pd.concat([df_num, df_cat], axis = 1)
+    # the elif repeat above steps but only for one kind of variables
+    elif len(num_cols) > 0:
+        df = df[num_cols].fillna(df[num_cols].mean())
+    elif len(cat_cols) > 0:
+        df = df[cat_cols].fillna(df[cat_cols].mode())
+elif us_na_handling == 'drop rows with NA':
+    df = df.dropna()
+    df = df.reset_index()
 
 # PCA
 # info_PCA = st.button("ℹ️")
@@ -327,6 +339,7 @@ if len(us_dummie_var) > 0:
     df = df.drop(df[us_dummie_var], axis = 1)
     #concat df and cat variables
     df = pd.concat([df, df_dummies], axis = 1)
+    df = df.dropna()
 
 
 st.subheader("dataframe after cleaning")
