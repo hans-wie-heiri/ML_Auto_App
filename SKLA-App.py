@@ -432,14 +432,20 @@ st.write('Do you want to drop Columns with 0 variance?')
 use_variance_threshold = st.button("drop columns with 0 variance")
 
 if use_variance_threshold:
-    # variancetreshold = st.number_input("Feature Selection with minimal variance within feature", min_value=0.0, max_value=1.0, value=0.0)
-    n_col_before = len(x_options_df.columns)
-    selection = VarianceThreshold(threshold=(0)).set_output(transform="pandas")
-    x_options_df = selection.fit_transform(x_options_df)
-    n_col_after = len(x_options_df.columns)
-    n_del_col = (n_col_before - n_col_after)
-    st.write("Number of deleted columns: ", n_del_col)
-    st.write("Number of retained columns: ", n_col_after)
+    try:
+        # variancetreshold = st.number_input("Feature Selection with minimal variance within feature", min_value=0.0, max_value=1.0, value=0.0)
+        n_col_before = len(x_options_df.columns)
+        selection = VarianceThreshold(threshold=(0)).set_output(transform="pandas")
+        x_options_df = selection.fit_transform(x_options_df)
+        n_col_after = len(x_options_df.columns)
+        n_del_col = (n_col_before - n_col_after)
+        st.write("Number of deleted columns: ", n_del_col)
+        st.write("Number of retained columns: ", n_col_after)
+    except (ValueError):
+        cat_col_names = list(x_options_df.select_dtypes(include=['object', 'bool']).columns)
+        st.warning('Could not perform variance reduction. Is there a categorical  variable that has not been recoded as dummy? Maybe: ' + str(cat_col_names), icon="⚠️")
+    except:
+        st.warning('Could not perform variance reduction.', icon="⚠️")
 
 us_x_var = st.multiselect(
     'Which columns do you want as independent variable?',
