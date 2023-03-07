@@ -1,3 +1,12 @@
+# ------------- ToDo List --------------
+# - posiibility to delete NA rows (additional to fill)
+# - choose scaler
+# - Algo selection
+# - design
+# - crashproove
+# - select time space for time series testing 
+# - export model ?
+# - predict new data?
 
 # ------------- Linbraries --------------
 
@@ -8,7 +17,7 @@ import plotly.express as px
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler, MinMaxScaler, OneHotEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler, RobustScaler, MinMaxScaler, OneHotEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
@@ -25,7 +34,7 @@ from sklearn.decomposition import PCA
 # ------------- Settings --------------
 
 page_title = 'SK Learn Automation'
-page_description = 'This App automates a Data Science analysis with the sk-learn API. \
+page_description = 'This App automates a Data Science analysis with the [scikit-learn](https://scikit-learn.org/stable/index.html) API. \
 It is functional and automates the process steps for a small data science project or a first shot at model selection. \
 The application does not claim to replace a full and comprehensive Data Science Project. \
 The application allows regression, classification and time series analysis with machine learning algorithms.'
@@ -124,14 +133,14 @@ if use_cor_matrix:
     fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues) # reverse color by adding "_r" (eg. Blues_r) 
     st.plotly_chart(fig)
 
-st.subheader("plot selcted features")
+st.subheader("Plot Selcted Features")
 
 us_x_axis = st.selectbox('select x-Axis', list(df.columns))
 us_y_axis = st.selectbox('select y-Axis', list(df.columns), index = (len(list(df.columns))-1))
 
 # plot user selected features
 fig = px.scatter(df, x = us_x_axis, y = us_y_axis, 
-            title= 'Plot Selected Feaures').update_layout(
+            title= 'Scatterplot of Selected Features').update_layout(
             xaxis_title= us_x_axis, yaxis_title= us_y_axis)
 st.plotly_chart(fig)
 
@@ -163,10 +172,14 @@ elif len(cat_cols) > 0:
 
 
 # PCA
+# info_PCA = st.button("ℹ️")
+# if info_PCA:
+#     st.info('Linear dimensionality reduction using Singular Value Decomposition of the data to project it to a lower dimensional space.', icon="ℹ️")
 
 us_pca_var = st.multiselect(
     'Do you want to do a PCA on some columns?',
     num_cols, default=None)
+
 
 def pca_on_us_col(df):
     pca_df = df[us_pca_var]
@@ -238,14 +251,14 @@ if len(us_date_var) > 0:
             df[i] = pd.to_datetime(df[i], format = datetimeformats[us_datetimeformats])
             converted_date_var.append(df[i].name)
             after_date = str(df[i][0])
-            st.write(i + ': before = ' + before_date + ' -- after = ' + after_date + ' -- new type = ' + str(df[i].dtype))
+            st.write(i + ': before = ' + before_date + ' ; new = ' + after_date + ' ; new type = ' + str(df[i].dtype))
         except (ValueError, TypeError):
             try:
                 df[i] = pd.to_datetime(df[i], format = None) # try converting with automatic date format
                 st.warning(df[i].name + ' was converted with default format because chosen format failed', icon="⚠️")
                 converted_date_var.append(df[i].name)
                 after_date = str(df[i][0])
-                st.write(i + ': before = ' + before_date + ' -- after = ' + after_date + ' -- new type = ' + str(df[i].dtype))
+                st.write(i + ': before = ' + before_date + ' ; new = ' + after_date + ' ; new type = ' + str(df[i].dtype))
             except (ValueError, TypeError):
                 pass
                 st.warning(df[i].name + ' could not be converted to date format', icon="⚠️")
@@ -381,7 +394,13 @@ st.dataframe(X_df.head().style.set_precision(2))
 st.markdown("""---""")
 
 st.header('Launch the desired models')
-st.write('Time Series analysis is only callable if at least one feature has been recoded as date.')
+descr_model_launch = 'Regression models are only launchable if the chosen dependen variable is a number and \
+classification models in turn, only if it is of type bool, object or int. \
+Time Series analysis is only callable if at least one feature has been recoded as date.'
+
+st.write(descr_model_launch)
+
+# test size selection
 
 testsizes = {
     '10%' : 0.10,
@@ -393,6 +412,16 @@ testsizes = {
 
 us_test_size_pct = st.radio('What % of data do you want to use as test size?', list(testsizes.keys()), index=1, horizontal = True)
 us_test_size = testsizes[us_test_size_pct]
+
+# scaler selection
+
+scalers = {
+    'MinMaxScaler' : MinMaxScaler(),
+    'StandardScaler' : StandardScaler(),
+    'RobustScaler' : RobustScaler()
+}
+
+us_scaler_key = st.radio('What scaler do you want to use?', list(scalers.keys()), index=0, horizontal = True)
 
 # ------------- Launch model calculation --------------
 
@@ -408,17 +437,25 @@ if "x_var_user" not in st.session_state:
 if "test_size_user" not in st.session_state:
     st.session_state.test_size_user = us_test_size
 
+if "scaler_user" not in st.session_state:
+    st.session_state.scaler_user = us_scaler_key
+
 check_y_no_change = st.session_state.y_var_user == us_y_var
 check_x_no_change = st.session_state.x_var_user == us_x_var
 check_test_size_no_change = st.session_state.test_size_user == us_test_size
+check_scaler_no_change = st.session_state.scaler_user == us_scaler_key
+
+# check y for possible models
+reg_cols = df.select_dtypes(include=np.number).columns
+clas_cols = df.select_dtypes(include=['object', 'bool', 'int']).columns
 
 
 # function for splitting, normalizing data that outputs arrays
 @st.cache_data(ttl = time_to_live_cache) 
-def split_normalize(X_df, y_ser, us_test_size):
+def split_normalize(X_df, y_ser, us_test_size, us_scaler_key):
     X_train_df, X_test_df, y_train_df, y_test_df = train_test_split(X_df, y_ser, random_state=0, test_size= us_test_size)
 
-    scaler = MinMaxScaler()
+    scaler = scalers[us_scaler_key]
     X_train = scaler.fit_transform(X_train_df)
     X_test = scaler.transform(X_test_df)
 
@@ -479,7 +516,7 @@ def reg_models_comparison(X_train, X_test, y_train, y_test):
 
 # function for splitting (last 1 - test size percent of time series), that outputs arrays for time series
 @st.cache_data(ttl = time_to_live_cache) 
-def split_timeseries(X_df_ts, y_ser_ts, us_test_size):
+def split_timeseries(X_df_ts, y_ser_ts, us_test_size, us_scaler_key):
     train_size = (1-us_test_size)
     
     X_train_df_ts = X_df_ts[:round(len(X_df_ts)*train_size)]
@@ -490,7 +527,7 @@ def split_timeseries(X_df_ts, y_ser_ts, us_test_size):
     train_ts_index = y_train_df_ts.index
     test_ts_index = y_test_df_ts.index
 
-    scaler = MinMaxScaler()
+    scaler = scalers[us_scaler_key]
     X_train_ts = scaler.fit_transform(X_train_df_ts)
     X_test_ts = scaler.transform(X_test_df_ts)
 
@@ -502,195 +539,212 @@ def split_timeseries(X_df_ts, y_ser_ts, us_test_size):
 
 #--- Regression models
 
+# only if y is a number type
 
-st.subheader("Launch auto regression models")
+if us_y_var in reg_cols:
 
-
-start_reg_models = st.button("Start regression analysis")
-
-# initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
-
-if "start_reg_models_state" not in st.session_state :
-    st.session_state.start_reg_models_state = False
-    
-
-if (start_reg_models or (st.session_state.start_reg_models_state 
-                         and check_y_no_change 
-                         and check_x_no_change
-                         and check_test_size_no_change)):
-    st.session_state.start_reg_models_state = True
-    st.session_state.y_var_user = us_y_var
-    st.session_state.x_var_user = us_x_var
-    st.session_state.test_size_user = us_test_size
-
-    # run splitting
-    X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size)
-
-    # run model and compare
-    reg_scores_df, reg_pred_y_df, reg_res_y_df = reg_models_comparison(X_train, X_test, y_train, y_test)
-
-    # plot model scores
-    fig = px.bar(reg_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
-        title="Model Comparison on R2 (floored at 0)")
-    fig['layout']['yaxis']['autorange'] = "reversed"
-    st.plotly_chart(fig)
-
-    # show tabel of model scores
-    st.dataframe(reg_scores_df.style.set_precision(4))
+    st.subheader("Launch auto regression models")
 
 
-    use_reg_model = st.radio('show results for:', reg_scores_df.Model) 
+    start_reg_models = st.button("Start regression analysis")
 
-    # plot model value vs actual
-    fig = px.scatter(reg_pred_y_df, x = use_reg_model, y = 'y_test', 
-                title= 'Model Prediction vs Y Test - ' + use_reg_model).update_layout(
-                xaxis_title="model prediction", yaxis_title="y test")
-    fig = fig.add_traces(px.line(reg_pred_y_df, x='y_test', y='y_test', color_discrete_sequence=["yellow"]).data)
-    st.plotly_chart(fig)
+    # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
 
-    # plot histogramm of residuals
-    fig = px.histogram(reg_res_y_df, x = use_reg_model,
-                title="Histogramm of Residuals - " + use_reg_model).update_layout(
-                xaxis_title="residuals")
+    if "start_reg_models_state" not in st.session_state :
+        st.session_state.start_reg_models_state = False
+        
 
-    st.plotly_chart(fig)
+    if (start_reg_models or (st.session_state.start_reg_models_state 
+                            and check_y_no_change 
+                            and check_x_no_change
+                            and check_test_size_no_change
+                            and check_scaler_no_change)):
+        st.session_state.start_reg_models_state = True
+        st.session_state.y_var_user = us_y_var
+        st.session_state.x_var_user = us_x_var
+        st.session_state.test_size_user = us_test_size
+        st.session_state.scaler_user = us_scaler_key
 
-    # plot residuals and y test
-    fig = px.scatter(reg_res_y_df, x = 'y_test', y = use_reg_model,
-                title="Residuals and Y Test - " + use_reg_model).update_layout(
-                xaxis_title="y test", yaxis_title="residuals")
+        # run splitting
+        X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size, us_scaler_key)
 
-    st.plotly_chart(fig)
+        # run model and compare
+        reg_scores_df, reg_pred_y_df, reg_res_y_df = reg_models_comparison(X_train, X_test, y_train, y_test)
+
+        # Titel
+        st.subheader("Results for Regression Models on Testset")
+
+        # plot model scores
+        fig = px.bar(reg_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
+            title="Model Comparison on R2 (floored at 0)")
+        fig['layout']['yaxis']['autorange'] = "reversed"
+        st.plotly_chart(fig)
+
+        # show tabel of model scores
+        st.dataframe(reg_scores_df.style.set_precision(4))
+
+
+        use_reg_model = st.radio('show results for:', reg_scores_df.Model) 
+
+        # plot model value vs actual
+        fig = px.scatter(reg_pred_y_df, x = use_reg_model, y = 'y_test', 
+                    title= 'Model Prediction vs Y Test - ' + use_reg_model).update_layout(
+                    xaxis_title="model prediction", yaxis_title="y test")
+        fig = fig.add_traces(px.line(reg_pred_y_df, x='y_test', y='y_test', color_discrete_sequence=["yellow"]).data)
+        st.plotly_chart(fig)
+
+        # plot histogramm of residuals
+        fig = px.histogram(reg_res_y_df, x = use_reg_model,
+                    title="Histogramm of Residuals - " + use_reg_model).update_layout(
+                    xaxis_title="residuals")
+
+        st.plotly_chart(fig)
+
+        # plot residuals and y test
+        fig = px.scatter(reg_res_y_df, x = 'y_test', y = use_reg_model,
+                    title="Residuals and Y Test - " + use_reg_model).update_layout(
+                    xaxis_title="y test", yaxis_title="residuals")
+
+        st.plotly_chart(fig)
 
 
 
 #--- Classification models
 
-classifier_models = {'RandomForestClassifier': RandomForestClassifier(),
-                    'LogisticRegression': LogisticRegression(solver='sag'), #https://scikit-learn.org/stable/modules/linear_model.html#solvers
-                     'SVC': SVC(),
-                     'DummyClassifier': DummyClassifier(),
-                     'KNeighborsClassifier': KNeighborsClassifier(),
-                     'Perceptron': Perceptron()
-                    }
+# only if y is a number type
 
-st.subheader("Launch auto classification models")
+if us_y_var in clas_cols:
 
-start_clas_models = st.button("Start classification analysis")
+    classifier_models = {'RandomForestClassifier': RandomForestClassifier(),
+                        'LogisticRegression': LogisticRegression(solver='sag'), #https://scikit-learn.org/stable/modules/linear_model.html#solvers
+                        'SVC': SVC(),
+                        'DummyClassifier': DummyClassifier(),
+                        'KNeighborsClassifier': KNeighborsClassifier(),
+                        'Perceptron': Perceptron()
+                        }
 
-# initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
+    st.subheader("Launch auto classification models")
 
-if "start_clas_models_state" not in st.session_state :
-    st.session_state.start_clas_models_state = False
-    
+    start_clas_models = st.button("Start classification analysis")
 
-if (start_clas_models or (st.session_state.start_clas_models_state 
-                          and check_y_no_change 
-                          and check_x_no_change 
-                          and check_test_size_no_change)):
-    st.session_state.start_clas_models_state = True
-    st.session_state.y_var_user = us_y_var
-    st.session_state.x_var_user = us_x_var
-    st.session_state.test_size_user = us_test_size
+    # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
 
-    X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size)
-
-    @st.cache_data(ttl = time_to_live_cache) 
-    def class_models_comparison(X_train, X_test, y_train, y_test):
+    if "start_clas_models_state" not in st.session_state :
+        st.session_state.start_clas_models_state = False
         
-        # init values to be stored
-        modelnames = []
-        accuracy_scores = []
-        w_precision_scores = []
-        w_recall_scores = []
-        w_f1_scores = []
-        predictions = {}
-        class_labels = {}
 
-        
-        # loop through models
-        for i in classifier_models:
-            m_clas = classifier_models[i]
-            m_clas.fit(X_train, y_train)
+    if (start_clas_models or (st.session_state.start_clas_models_state 
+                            and check_y_no_change 
+                            and check_x_no_change 
+                            and check_test_size_no_change
+                            and check_scaler_no_change)):
+        st.session_state.start_clas_models_state = True
+        st.session_state.y_var_user = us_y_var
+        st.session_state.x_var_user = us_x_var
+        st.session_state.test_size_user = us_test_size
+        st.session_state.scaler_user = us_scaler_key
 
-            y_test_predict = m_clas.predict(X_test)
-            accuracy = accuracy_score(y_test, y_test_predict)
-            precision = precision_score(y_test, y_test_predict, average='weighted')
-            recall = recall_score(y_test, y_test_predict, average='weighted')
-            f1 = f1_score(y_test, y_test_predict, average='weighted')
+        X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size, us_scaler_key)
 
-            modelnames.append(i)
-            accuracy_scores.append(round(accuracy, 4))
-            w_precision_scores.append(round(precision, 4))
-            w_recall_scores.append(round(recall, 4))
-            w_f1_scores.append(round(f1, 4))
-            predictions[i] = y_test_predict
-            class_labels[i] = list(m_clas.classes_)
+        @st.cache_data(ttl = time_to_live_cache) 
+        def class_models_comparison(X_train, X_test, y_train, y_test):
             
-        # create score dataframe
-        clas_scores_df = pd.DataFrame({'Model': modelnames, 'Accuracy': accuracy_scores, 'Precision': w_precision_scores, 'Recall': w_recall_scores, 'F1': w_f1_scores})
-        clas_scores_df = clas_scores_df.sort_values(by='Accuracy', ascending = False).reset_index().drop(columns=['index'])
+            # init values to be stored
+            modelnames = []
+            accuracy_scores = []
+            w_precision_scores = []
+            w_recall_scores = []
+            w_f1_scores = []
+            predictions = {}
+            class_labels = {}
 
-        # create prediction dataframe
-        clas_pred_y_df = pd.DataFrame(predictions)
-        clas_pred_y_df['y_test'] = pd.Series(y_test)
+            
+            # loop through models
+            for i in classifier_models:
+                m_clas = classifier_models[i]
+                m_clas.fit(X_train, y_train)
+
+                y_test_predict = m_clas.predict(X_test)
+                accuracy = accuracy_score(y_test, y_test_predict)
+                precision = precision_score(y_test, y_test_predict, average='weighted')
+                recall = recall_score(y_test, y_test_predict, average='weighted')
+                f1 = f1_score(y_test, y_test_predict, average='weighted')
+
+                modelnames.append(i)
+                accuracy_scores.append(round(accuracy, 4))
+                w_precision_scores.append(round(precision, 4))
+                w_recall_scores.append(round(recall, 4))
+                w_f1_scores.append(round(f1, 4))
+                predictions[i] = y_test_predict
+                class_labels[i] = list(m_clas.classes_)
+                
+            # create score dataframe
+            clas_scores_df = pd.DataFrame({'Model': modelnames, 'Accuracy': accuracy_scores, 'Precision': w_precision_scores, 'Recall': w_recall_scores, 'F1': w_f1_scores})
+            clas_scores_df = clas_scores_df.sort_values(by='Accuracy', ascending = False).reset_index().drop(columns=['index'])
+
+            # create prediction dataframe
+            clas_pred_y_df = pd.DataFrame(predictions)
+            clas_pred_y_df['y_test'] = pd.Series(y_test)
+            
+            # create class dataframe
+            clas_label_df = pd.DataFrame(class_labels)
+            
+            # return the 3 dataframes
+            return clas_scores_df, clas_pred_y_df, clas_label_df
+
+        clas_scores_df, clas_pred_y_df, clas_label_df = class_models_comparison(X_train, X_test, y_train, y_test)
+
+        # Titel
+        st.subheader("Results for Classification Models on Testset")
         
-        # create class dataframe
-        clas_label_df = pd.DataFrame(class_labels)
-        
-        # return the 3 dataframes
-        return clas_scores_df, clas_pred_y_df, clas_label_df
+        fig = px.bar(clas_scores_df, x = 'Accuracy', y = 'Model', orientation = 'h', color = 'Accuracy')
+        fig['layout']['yaxis']['autorange'] = "reversed"
+        st.plotly_chart(fig)
 
-    clas_scores_df, clas_pred_y_df, clas_label_df = class_models_comparison(X_train, X_test, y_train, y_test)
-    
-    fig = px.bar(clas_scores_df, x = 'Accuracy', y = 'Model', orientation = 'h', color = 'Accuracy')
-    fig['layout']['yaxis']['autorange'] = "reversed"
-    st.plotly_chart(fig)
+        st.dataframe(clas_scores_df.style.set_precision(4))
 
-    st.dataframe(clas_scores_df.style.set_precision(4))
+        use_clas_model = st.radio('show results for:', clas_scores_df.Model)
 
-    use_clas_model = st.radio('show results for:', clas_scores_df.Model)
+        cm = confusion_matrix(clas_pred_y_df['y_test'], clas_pred_y_df[use_clas_model])
+        xlab = list(clas_label_df[use_clas_model])
+        ylab = xlab
 
-    cm = confusion_matrix(clas_pred_y_df['y_test'], clas_pred_y_df[use_clas_model])
-    xlab = list(clas_label_df[use_clas_model])
-    ylab = xlab
+        fig = px.imshow(cm, x= xlab, y=ylab, text_auto=True, color_continuous_scale=px.colors.sequential.Blues,
+        title= "Confusion Matrix - " + use_clas_model).update_layout(
+        xaxis_title="predicted label", yaxis_title="true label")
+        st.plotly_chart(fig)
 
-    fig = px.imshow(cm, x= xlab, y=ylab, text_auto=True, color_continuous_scale=px.colors.sequential.Blues,
-    title= "Confusion Matrix - " + use_clas_model).update_layout(
-    xaxis_title="predicted label", yaxis_title="true label")
-    st.plotly_chart(fig)
+        fig = px.histogram(clas_pred_y_df, x = 'y_test', title = 'Histogram of True Values -' + use_clas_model).update_layout(
+        xaxis_title="True Values")
+        st.plotly_chart(fig)
 
-    fig = px.histogram(clas_pred_y_df, x = 'y_test', title = 'Histogram of True Values -' + use_clas_model).update_layout(
-    xaxis_title="True Values")
-    st.plotly_chart(fig)
+        fig = px.histogram(clas_pred_y_df, x = use_clas_model, title = 'Histogram of Predicted Values - ' + use_clas_model).update_layout(
+        xaxis_title="Predicted Values")
+        st.plotly_chart(fig)
 
-    fig = px.histogram(clas_pred_y_df, x = use_clas_model, title = 'Histogram of Predicted Values - ' + use_clas_model).update_layout(
-    xaxis_title="Predicted Values")
-    st.plotly_chart(fig)
+        @st.cache_data(ttl = time_to_live_cache) 
+        def clas_score_label(clas_pred_y_df):
+            label_list = list(clas_pred_y_df['y_test'].unique())
+            precision_list = []
+            recall_list = []
 
-    @st.cache_data(ttl = time_to_live_cache) 
-    def clas_score_label(clas_pred_y_df):
-        label_list = list(clas_pred_y_df['y_test'].unique())
-        precision_list = []
-        recall_list = []
+            for i in label_list:
+                sub_df_prec = clas_pred_y_df[clas_pred_y_df['RandomForestClassifier'] == i]
+                precision = precision_score(sub_df_prec['y_test'], sub_df_prec['RandomForestClassifier'], average='micro')
+                precision_list.append(precision)
 
-        for i in label_list:
-            sub_df_prec = clas_pred_y_df[clas_pred_y_df['RandomForestClassifier'] == i]
-            precision = precision_score(sub_df_prec['y_test'], sub_df_prec['RandomForestClassifier'], average='micro')
-            precision_list.append(precision)
+                sub_df_reca = clas_pred_y_df[clas_pred_y_df['y_test'] == i]
+                recall = recall_score(sub_df_reca['y_test'], sub_df_reca['RandomForestClassifier'], average='micro')
+                recall_list.append(recall)
 
-            sub_df_reca = clas_pred_y_df[clas_pred_y_df['y_test'] == i]
-            recall = recall_score(sub_df_reca['y_test'], sub_df_reca['RandomForestClassifier'], average='micro')
-            recall_list.append(recall)
+            score_label_df = pd.DataFrame({'Label': label_list, 'Precision' : precision_list, 'Recall': recall_list})
+            score_label_df['F1'] = 2 * (score_label_df['Precision'] * score_label_df['Recall']) / (score_label_df['Precision'] + score_label_df['Recall'])
+            return score_label_df
 
-        score_label_df = pd.DataFrame({'Label': label_list, 'Precision' : precision_list, 'Recall': recall_list})
-        score_label_df['F1'] = 2 * (score_label_df['Precision'] * score_label_df['Recall']) / (score_label_df['Precision'] + score_label_df['Recall'])
-        return score_label_df
+        score_label_df = clas_score_label(clas_pred_y_df)
 
-    score_label_df = clas_score_label(clas_pred_y_df)
-
-    st.markdown('**Scores per Category**')
-    st.dataframe(score_label_df)
+        st.markdown('**Scores per Category**')
+        st.dataframe(score_label_df)
 
 
 #--- Time Series models
@@ -709,11 +763,14 @@ if len(converted_date_var) > 0:
     if (start_ts_models or (st.session_state.start_ts_models_state 
                             and check_y_no_change 
                             and check_x_no_change
-                            and check_test_size_no_change)):
+                            and check_test_size_no_change
+                            and check_scaler_no_change)):
         st.session_state.start_ts_models_state = True
         st.session_state.y_var_user = us_y_var
         st.session_state.x_var_user = us_x_var
         st.session_state.test_size_user = us_test_size
+        st.session_state.scaler_user = us_scaler_key
+        
 
         # remove dupplicate function that keeps last version of index
         def remove_duplicated_index(df):
@@ -732,9 +789,12 @@ if len(converted_date_var) > 0:
         y_ser_ts = df_ts[us_y_var]
         X_df_ts = df_ts[us_x_var]
 
-        X_train_ts, X_test_ts, y_train_ts, y_test_ts, train_ts_index, test_ts_index = split_timeseries(X_df_ts, y_ser_ts, us_test_size)
+        X_train_ts, X_test_ts, y_train_ts, y_test_ts, train_ts_index, test_ts_index = split_timeseries(X_df_ts, y_ser_ts, us_test_size, us_scaler_key)
 
         ts_scores_df, ts_pred_y_df, ts_res_y_df = reg_models_comparison(X_train_ts, X_test_ts, y_train_ts, y_test_ts)
+
+        # Titel
+        st.subheader("Results for Regression Models on Testset")
 
         # plot model scores
         fig = px.bar(ts_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
