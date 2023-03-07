@@ -1,6 +1,5 @@
 # ------------- ToDo List --------------
-# - posiibility to delete NA rows (additional to fill)
-# - possibility to delete duplicates
+# - bug: variance threshhold crashes if not all cat are recoded as dummies
 # - Algo selection
 # - design
 # - crashproove
@@ -83,7 +82,7 @@ csv_options = {
 csv_name = [i for i in csv_options]
 
 
-use_csv_name = st.selectbox('**select dataset from List**', options= csv_name)
+use_csv_name = st.selectbox('**select dataset from list**', options= csv_name)
 uploaded_file = st.file_uploader("**or upload your own**")
 
 
@@ -92,12 +91,24 @@ def load_data(url, sep):
     df = pd.read_csv(url, sep)
     return df
 
+
 if uploaded_file is None:
     df = load_data(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
     df_name = use_csv_name
 if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    df_name = str(uploaded_file.name)
+    try:
+        df = pd.read_csv(uploaded_file)
+        df_name = str(uploaded_file.name)
+    except:
+        try:
+            uploaded_file.seek(0) # the buffering needs to be reset otherwise there is a parsing error
+            df = pd.read_csv(uploaded_file, encoding='latin-1')
+            df_name = str(uploaded_file.name)
+        except:
+            df = load_data(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
+            df_name = use_csv_name
+            st.warning('Could not read the file. Dataset from list is loaded.', icon="⚠️")
+
 
 ## head the data
 st.subheader("first entries of the dataframe - " + df_name)
@@ -178,6 +189,7 @@ st.markdown("""---""")
 st.header('Data Preprocessing')
 st.write("NA-values will automatically be filled (numerical variables by their mean and categorical by their mode) \
          alternatively all rows with NA-values can droped.")
+st.write("")
 
 # find column type
 
@@ -208,6 +220,28 @@ if us_na_handling == 'fill NA (mean/mode)':
 elif us_na_handling == 'drop rows with NA':
     df = df.dropna()
     df = df.reset_index()
+
+
+# look for duplicates
+
+n_duplicate_rows = len(df[df.duplicated()])
+
+if n_duplicate_rows > 0:
+
+
+    dup_handling = {
+        'drop dupplicate rows' : 'drop',
+        'leave as is' : 'leave'
+    }
+
+    us_dup_handling = st.radio('How do you want to handle the dupplicate rows?', dup_handling.keys(), horizontal=True, index=0)
+    
+
+    if dup_handling[us_dup_handling] == 'drop':
+        df = df.drop_duplicates(df)
+        st.warning('There were '+ str(n_duplicate_rows) +' dupplicated rows, where duplicates have been removed')
+    else:
+        st.warning('There are '+ str(n_duplicate_rows) +' dupplicate rows', icon="⚠️")
 
 # PCA
 # info_PCA = st.button("ℹ️")
