@@ -1,5 +1,6 @@
 # ------------- ToDo List --------------
-# - Algo selection
+# - export csv
+# - import wit semicolon doesn't work
 # - design
 # - crashproove
 # - select time space for time series testing ?
@@ -71,12 +72,12 @@ st.subheader("choose the data")
 
 
 csv_options = {
-    'winequality': ['winequality-red.csv', ';'],
+    'winequality': ['local_data/winequality-red.csv', ';'],
     'california housing': ['https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv', ','],
-    'breast cancer': ['breast_cancer.csv', ','], 
-    'bioactivity acetylcholinesterase': ['acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', ','],
+    'breast cancer': ['local_data/breast_cancer.csv', ','], 
+    'bioactivity acetylcholinesterase': ['local_data/acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', ','],
     'energy consumption hourly': ['https://raw.githubusercontent.com/archd3sai/Hourly-Energy-Consumption-Prediction/master/PJME_hourly.csv' , ','],
-    'Konsumentenpreise Index Mai 2000': ['Konsumentenpreise_Index_Mai_2000.csv', ';']
+    'Konsumentenpreise Index Mai 2000': ['local_data/Konsumentenpreise_Index_Mai_2000.csv', ';']
 }
 
 csv_name = [i for i in csv_options]
@@ -97,13 +98,13 @@ if uploaded_file is None:
     df_name = use_csv_name
 if uploaded_file is not None:
     try:
-        df = pd.read_csv(uploaded_file)
-        df_name = str(uploaded_file.name)
+        df = pd.read_csv(uploaded_file, sep = None, engine='python')
+        df_name = str(uploaded_file.name).removesuffix('.csv')
     except:
         try:
             uploaded_file.seek(0) # the buffering needs to be reset otherwise there is a parsing error
-            df = pd.read_csv(uploaded_file, encoding='latin-1')
-            df_name = str(uploaded_file.name)
+            df = pd.read_csv(uploaded_file, encoding='latin-1', sep = None, engine='python')
+            df_name = str(uploaded_file.name).removesuffix('.csv')
         except:
             df = load_data(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
             df_name = use_csv_name
@@ -404,6 +405,19 @@ if len(us_dummie_var) > 0:
 st.subheader("dataframe after cleaning")
 st.dataframe(df.head().style.set_precision(2))
 st.dataframe(show_info(df))
+
+@st.cache_data
+def convert_df_to_csv(df):
+  # IMPORTANT: Cache the conversion to prevent computation on every rerun
+  return df.to_csv().encode('utf-8')
+
+st.subheader("Download the preprocessed data")
+st.download_button(
+  label="Download as CSV",
+  data=convert_df_to_csv(df),
+  file_name= (df_name + '_preprocessed.csv'),
+  mime='text/csv',
+)
 
 st.markdown("""---""")
 

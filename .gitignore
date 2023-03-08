@@ -172,5 +172,6 @@ poetry.toml
 *.ipynb
 *.csv
 *.xlsx
+local_data/
 
 # End of https://www.toptal.com/developers/gitignore/api/python
