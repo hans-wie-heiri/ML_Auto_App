@@ -545,7 +545,7 @@ check_scaler_no_change = st.session_state.scaler_user == us_scaler_key
 # check y for possible models
 reg_cols = df.select_dtypes(include=np.number).columns
 clas_cols = df.select_dtypes(include=['object', 'bool', 'int']).columns
-
+cat_cols_x = X_df.select_dtypes(include=['object', 'bool']).columns
 
 # function for splitting, normalizing data that outputs arrays
 @st.cache_data(ttl = time_to_live_cache) 
@@ -634,11 +634,13 @@ def split_timeseries(X_df_ts, y_ser_ts, us_test_size, us_scaler_key):
     return(X_train_ts, X_test_ts, y_train_ts, y_test_ts, train_ts_index, test_ts_index)
 
 
+if len(cat_cols_x) > 0:
+    st.warning('Models can not be launched with categroical independent variables '+str(list(cat_cols_x))+'. Please recode as dummies or exclude.', icon="⚠️")
+
 #--- Regression models
 
 # only if y is a number type
-
-if us_y_var in reg_cols:
+if us_y_var in reg_cols and len(cat_cols_x) == 0:
 
     st.markdown("""---""")
     st.subheader("Launch auto regression models")
@@ -712,7 +714,7 @@ if us_y_var in reg_cols:
 
 # only if y is a number type
 
-if us_y_var in clas_cols:
+if us_y_var in clas_cols and len(cat_cols_x) == 0:
 
     classifier_models = {'RandomForestClassifier': RandomForestClassifier(),
                         'LogisticRegression': LogisticRegression(solver='sag'), #https://scikit-learn.org/stable/modules/linear_model.html#solvers
@@ -853,7 +855,7 @@ if us_y_var in clas_cols:
 
 #--- Time Series models
 
-if len(converted_date_var) > 0:
+if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
 
     st.markdown("""---""")
     st.subheader("Launch auto time series models")
