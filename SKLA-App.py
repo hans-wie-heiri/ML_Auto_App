@@ -1,5 +1,6 @@
 # ------------- ToDo List --------------
-# - design
+# - variance reduction not for cat or delete cat completely from x selection?
+# - sort plot x axis
 # - crashproove
 # - select time space for time series testing ?
 # - export model ?
@@ -408,6 +409,9 @@ st.subheader("dataframe after cleaning")
 st.dataframe(df.head().style.set_precision(2))
 st.dataframe(show_info(df))
 
+n_row, n_col = df.shape
+st.write(n_col, " features, ", n_row, " rows, ", df.size, " total elements")
+
 @st.cache_data
 def convert_df_to_csv(df):
   # IMPORTANT: Cache the conversion to prevent computation on every rerun
@@ -434,7 +438,6 @@ us_y_var = st.selectbox(
     'Which column do you want as dependent variable?',
     df.columns)
 
-x_options_df = df.drop(columns=[us_y_var])
 
 # TODO: split threshold for dummies (% occurence) ans continuous (variance). continuous hase to be scaled before see commented lines
 # scaler = MinMaxScaler().set_output(transform="pandas")
@@ -442,6 +445,13 @@ x_options_df = df.drop(columns=[us_y_var])
 
 
 st.subheader('Choose your X')
+x_options_df = df.drop(columns=[us_y_var])
+cat_cols_x = x_options_df.select_dtypes(include=['object', 'bool']).columns
+x_options_df = x_options_df.drop(cat_cols_x, axis = 1)
+if len(cat_cols_x) > 0:
+    st.warning('Models can not be launched with categroical independent variables '+str(list(cat_cols_x))+'.\
+                Please recode as dummies otherwise they can only be used as dependent variable.', icon="⚠️")
+
 
 st.write('Do you want to drop Columns with 0 variance?')
 use_variance_threshold = st.button("drop columns with 0 variance")
@@ -809,7 +819,7 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
 
         st.dataframe(clas_scores_df.style.set_precision(4))
 
-        us_clas_model_result = st.radio('show results for:', clas_scores_df.Model)
+        us_clas_model_result = st.radio('show results for:', clas_scores_df.Model, key='us_clas_model_result')
 
         conf_matrix_df = pd.DataFrame(clas_pred_y_df.groupby([us_clas_model_result, 'y_test'])['y_test'].count())
         conf_matrix_df.rename(columns={'y_test': "count"}, inplace=True)
@@ -914,7 +924,7 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
         # show tabel of model scores
         st.dataframe(ts_scores_df.style.set_precision(4))
 
-        use_ts_model = st.radio('show results for:', ts_scores_df.Model)
+        use_ts_model = st.radio('show results for:', ts_scores_df.Model, key='use_ts_model')
 
         ts_pred_y_df.set_index(test_ts_index, inplace=True)
         pred_df_ts = pd.concat([df_ts, ts_pred_y_df], axis = 1)
