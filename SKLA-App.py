@@ -153,16 +153,20 @@ if use_cor_matrix:
 st.subheader("Plot Selcted Features")
 
 plot_types = ['Scatter Plot', 'Histogramm', 'Line Plot', 'Box Plot', 'Heatmap of count']
-
+axis_options = list(df.columns)
 us_plot_type = st.selectbox('Select Plot Type', plot_types)
-us_x_axis = st.selectbox('select x-Axis', list(df.columns))
+us_x_axis = st.selectbox('select x-Axis', axis_options)
 if us_plot_type != 'Histogramm':
-    us_y_axis = st.selectbox('select y-Axis', list(df.columns), index = (len(list(df.columns))-1))
+    us_y_axis = st.selectbox('select y-Axis', axis_options, index = (len(axis_options)-1))
+
+color_options = axis_options.copy()
+color_options.append(None)
+us_color_group = st.selectbox('select color grouping', color_options, index = (len(color_options)-1))
 
 # plot user selected features
 
 if us_plot_type == 'Scatter Plot':
-    fig = px.scatter(df, x = us_x_axis, y = us_y_axis, 
+    fig = px.scatter(df, x = us_x_axis, y = us_y_axis, color = us_color_group,
                 title= 'Scatter plot of Selected Features').update_layout(
                 xaxis_title= us_x_axis, yaxis_title= us_y_axis)
 elif us_plot_type == 'Histogramm':
@@ -493,7 +497,8 @@ col2.plotly_chart(fig, use_container_width=True)
 
 st.write('chosen independent variable')
 st.dataframe(X_df.head().style.set_precision(2))
-
+n_row, n_col = X_df.shape
+st.write(n_col, " features, ", n_row, " rows, ", df.size, " total elements")
 
 st.markdown("""---""")
 
