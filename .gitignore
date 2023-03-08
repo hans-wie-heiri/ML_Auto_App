@@ -173,5 +173,6 @@ poetry.toml
 *.csv
 *.xlsx
 local_data/
+images/
 
 # End of https://www.toptal.com/developers/gitignore/api/python

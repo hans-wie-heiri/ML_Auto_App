@@ -1,6 +1,4 @@
 # ------------- ToDo List --------------
-# - export csv
-# - import wit semicolon doesn't work
 # - design
 # - crashproove
 # - select time space for time series testing ?
@@ -13,6 +11,7 @@
 
 import streamlit as st
 from streamlit_option_menu import option_menu 
+from PIL import Image
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
@@ -44,7 +43,10 @@ page_icon = ':eyeglasses:' # emoji : https://www.webfx.com/tools/emoji-cheat-she
 layout = 'centered' # derfault but can be chenged to wide
 
 st.set_page_config(page_title=page_title, page_icon=page_icon, layout=layout)
-st.title(page_title + " " + page_icon)
+image = Image.open('images/header_image_no_background_2.png')
+
+st.image(image, use_column_width=True)
+# st.title(page_title + " " + page_icon)
 st.write(page_description)
 
 # Cache
