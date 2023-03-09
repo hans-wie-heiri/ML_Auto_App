@@ -1,8 +1,8 @@
 # ------------- ToDo List --------------
-# - variance reduction not for cat or delete cat completely from x selection?
+# - add progress bar
 # - sort plot x axis
 # - crashproove
-# - add clustering
+# - add clustering ?
 # - st.experimental_data_editor make dataframe editable ?
 # - select time space for time series testing ?
 # - export model ?
@@ -454,6 +454,7 @@ us_y_var = st.selectbox(
 # scaler = MinMaxScaler().set_output(transform="pandas")
 # x_options_scal_df = scaler.fit_transform(x_options_df)
 
+st.write('')
 
 st.subheader('Choose your Features ( X )')
 x_options_df = df.drop(columns=[us_y_var])
@@ -464,8 +465,7 @@ if len(cat_cols_x) > 0:
                 Please recode as dummies otherwise they can only be used as dependent variable.', icon="⚠️")
 
 
-st.write('Do you want to drop features with 0 variance?')
-use_variance_threshold = st.button("Drop Features with 0 Variance")
+use_variance_threshold = st.radio("Do you want to drop features with 0 variance?", [False, True], horizontal= True)
 
 if use_variance_threshold:
     try:
@@ -545,7 +545,7 @@ us_scaler_key = st.radio('What scaler do you want to use?', list(scalers.keys())
 # ------------- Launch model calculation --------------
 
 # initialize states for x and y selction by user 
-# if user x or y selection changes, then we dont want an automatic model rerun below
+# if user model relevant selection for all models changes, then we dont want an automatic model rerun below
 
 if "y_var_user" not in st.session_state:
     st.session_state.y_var_user = us_y_var
@@ -669,24 +669,37 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
 
     us_reg_models = st.multiselect('What regression models do you want to launch and compare?', regression_models.keys(), default= list(regression_models.keys()))
 
-    start_reg_models = st.button("Start Regression Analysis")
+    # check that at least one model has been selected otherwise don't show launch button
+    if len(us_reg_models) > 0:
+        start_reg_models = st.button("Start Regression Analysis")
+    elif len(us_reg_models) == 0:
+        start_reg_models = False
+        st.warning('Please select at least one model if you want to do a regression analysis.', icon="⚠️")
+
 
     # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
+    # if user model selection changes, then we dont want an automatic model rerun below
 
     if "start_reg_models_state" not in st.session_state :
         st.session_state.start_reg_models_state = False
-        
+    
+    if "reg_model_selection" not in st.session_state:
+        st.session_state.reg_model_selection = us_reg_models
+
+    check_reg_models_no_change = st.session_state.reg_model_selection == us_reg_models
 
     if (start_reg_models or (st.session_state.start_reg_models_state 
                             and check_y_no_change 
                             and check_x_no_change
                             and check_test_size_no_change
-                            and check_scaler_no_change)):
+                            and check_scaler_no_change
+                            and check_reg_models_no_change)):
         st.session_state.start_reg_models_state = True
         st.session_state.y_var_user = us_y_var
         st.session_state.x_var_user = us_x_var
         st.session_state.test_size_user = us_test_size
         st.session_state.scaler_user = us_scaler_key
+        st.session_state.reg_model_selection = us_reg_models
 
         # run splitting
         X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size, us_scaler_key)
@@ -752,24 +765,39 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
     st.subheader("Classification Models")
 
     us_clas_models = st.multiselect('What classification models do you want to launch and compare?', classifier_models.keys(), default= list(classifier_models.keys()))
-    start_clas_models = st.button("Start Classification Analysis")
+    
+    # check that at least one model has been selected otherwise don't show launch button
+    if len(us_clas_models) > 0:
+        start_clas_models = st.button("Start Classification Analysis")
+    elif len(us_clas_models) == 0:
+        start_clas_models = False
+        st.warning('Please select at least one model if you want to do a classification analysis.', icon="⚠️")
+
 
     # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
+    # if user model selection changes, then we dont want an automatic model rerun below
 
     if "start_clas_models_state" not in st.session_state :
         st.session_state.start_clas_models_state = False
-        
+    
+    if "clas_model_selection" not in st.session_state:
+        st.session_state.clas_model_selection = us_clas_models
+
+    check_clas_models_no_change = st.session_state.clas_model_selection == us_clas_models
+     
 
     if (start_clas_models or (st.session_state.start_clas_models_state 
                             and check_y_no_change 
                             and check_x_no_change 
                             and check_test_size_no_change
-                            and check_scaler_no_change)):
+                            and check_scaler_no_change
+                            and check_clas_models_no_change)):
         st.session_state.start_clas_models_state = True
         st.session_state.y_var_user = us_y_var
         st.session_state.x_var_user = us_x_var
         st.session_state.test_size_user = us_test_size
         st.session_state.scaler_user = us_scaler_key
+        st.session_state.clas_model_selection = us_clas_models
 
         X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size, us_scaler_key)
 
@@ -857,12 +885,12 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
             recall_list = []
 
             for i in label_list:
-                sub_df_prec = clas_pred_y_df[clas_pred_y_df['RandomForestClassifier'] == i]
-                precision = precision_score(sub_df_prec['y_test'], sub_df_prec['RandomForestClassifier'], average='micro')
+                sub_df_prec = clas_pred_y_df[clas_pred_y_df[us_clas_model_result] == i]
+                precision = precision_score(sub_df_prec['y_test'], sub_df_prec[us_clas_model_result], average='micro')
                 precision_list.append(precision)
 
                 sub_df_reca = clas_pred_y_df[clas_pred_y_df['y_test'] == i]
-                recall = recall_score(sub_df_reca['y_test'], sub_df_reca['RandomForestClassifier'], average='micro')
+                recall = recall_score(sub_df_reca['y_test'], sub_df_reca[us_clas_model_result], average='micro')
                 recall_list.append(recall)
 
             score_label_df = pd.DataFrame({'Label': label_list, 'Precision' : precision_list, 'Recall': recall_list})
@@ -883,24 +911,41 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
     st.subheader("Regression Models on Time Series")
     us_ts_models = st.multiselect('What regression models do you want to launch and compare for the time series?', regression_models.keys(), default= list(regression_models.keys()))
 
-    start_ts_models = st.button("Start Time Series Analysis")
+    
+
+    # check that at least one model has been selected otherwise don't show launch button
+    if len(us_ts_models) > 0:
+        start_ts_models = st.button("Start Time Series Analysis")
+    elif len(us_ts_models) == 0:
+        start_ts_models = False
+        st.warning('Please select at least one model if you want to do a time series analysis.', icon="⚠️")
+
 
     # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
+    # if user model selection changes, then we dont want an automatic model rerun below
 
     if "start_ts_models_state" not in st.session_state :
         st.session_state.start_ts_models_state = False
+    
+    if "ts_model_selection" not in st.session_state:
+        st.session_state.ts_model_selection = us_ts_models
+
+    check_ts_models_no_change = st.session_state.ts_model_selection == us_ts_models
+      
         
 
     if (start_ts_models or (st.session_state.start_ts_models_state 
                             and check_y_no_change 
                             and check_x_no_change
                             and check_test_size_no_change
-                            and check_scaler_no_change)):
+                            and check_scaler_no_change
+                            and check_ts_models_no_change)):
         st.session_state.start_ts_models_state = True
         st.session_state.y_var_user = us_y_var
         st.session_state.x_var_user = us_x_var
         st.session_state.test_size_user = us_test_size
         st.session_state.scaler_user = us_scaler_key
+        st.session_state.ts_model_selection = us_ts_models
         
 
         # remove dupplicate function that keeps last version of index
