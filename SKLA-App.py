@@ -2,6 +2,8 @@
 # - variance reduction not for cat or delete cat completely from x selection?
 # - sort plot x axis
 # - crashproove
+# - add clustering
+# - st.experimental_data_editor make dataframe editable ?
 # - select time space for time series testing ?
 # - export model ?
 # - predict new data?
@@ -35,7 +37,7 @@ from sklearn.decomposition import PCA
 # ------------- Settings --------------
 
 page_title = 'SK Learn Automation'
-page_description = 'This App automates a Data Science analysis with the [scikit-learn](https://scikit-learn.org/stable/index.html) API. \
+page_description = 'This App automates predictive data analysis with the [scikit-learn](https://scikit-learn.org/stable/index.html) API. \
 It is functional and automates the process steps for a small data science project or a first shot at model selection. \
 The application does not claim to replace a full and comprehensive Data Science Project. \
 The application allows regression, classification and time series analysis with machine learning algorithms.'
@@ -44,7 +46,7 @@ page_icon = ':eyeglasses:' # emoji : https://www.webfx.com/tools/emoji-cheat-she
 layout = 'centered' # derfault but can be chenged to wide
 
 st.set_page_config(page_title=page_title, page_icon=page_icon, layout=layout)
-image = Image.open('images/header_image_no_background_2.png')
+image = Image.open('images/header_ML_no_back_ground_2.png')
 
 st.image(image, use_column_width=True)
 # st.title(page_title + " " + page_icon)
@@ -69,9 +71,9 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # ------------- Get data in and show it --------------
 
-st.header("data selection and first glance")
+st.header("Raw Data Selection and Visualization")
 st.write('')
-st.subheader("choose the data")
+st.subheader("Choose the Data")
 
 
 csv_options = {
@@ -115,10 +117,10 @@ if uploaded_file is not None:
 
 
 ## head the data
-st.subheader("first entries of the dataframe - " + df_name)
-st.dataframe(df.head(10).style.set_precision(2))
+st.subheader("First 1'000 Entries of the Dataframe - " + df_name)
+st.dataframe(df.head(1000).style.set_precision(2))
 n_row, n_col = df.shape
-st.write(n_col, " features, ", n_row, " rows, ", df.size, " total elements")
+st.write(n_col, " features, ", n_row, " instances, ", df.size, " total elements")
 
 ## show col info function
 
@@ -138,48 +140,42 @@ def show_info(df):
     df_col_info = pd.DataFrame({'columns' : colnames, 'n_non_null': is_not_na, 'n_null': is_na, 'n_unique': is_unique, 'type': is_type})
     return df_col_info
 
-st.subheader("column info")
+st.subheader("Column Info")
 st.dataframe(show_info(df))
 
-use_cor_matrix = st.button("create correlation matrix of continuous variables")
-
-if use_cor_matrix:
-    st.subheader("Correlation matrix of continuous variables")
-    corr_matrix = df.corr()
-    fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues) # reverse color by adding "_r" (eg. Blues_r) 
-    st.plotly_chart(fig)
 
 # Plot features
 st.subheader("Plot Selcted Features")
 
 plot_types = ['Scatter Plot', 'Histogramm', 'Line Plot', 'Box Plot', 'Heatmap of count']
 axis_options = list(df.columns)
-us_plot_type = st.selectbox('Select Plot Type', plot_types)
-us_x_axis = st.selectbox('select x-Axis', axis_options)
+us_plot_type = st.selectbox('select plot type', plot_types)
+us_x_axis = st.selectbox('select x-axis', axis_options)
 if us_plot_type != 'Histogramm':
-    us_y_axis = st.selectbox('select y-Axis', axis_options, index = (len(axis_options)-1))
+    us_y_axis = st.selectbox('select y-axis', axis_options, index = (len(axis_options)-1))
 
-color_options = axis_options.copy()
-color_options.append(None)
-us_color_group = st.selectbox('select color grouping', color_options, index = (len(color_options)-1))
+if us_plot_type not in ['Histogramm','Heatmap of count']:
+    color_options = axis_options.copy()
+    color_options.append(None)
+    us_color_group = st.selectbox('select color grouping', color_options, index = (len(color_options)-1))
 
 # plot user selected features
 
 if us_plot_type == 'Scatter Plot':
-    fig = px.scatter(df, x = us_x_axis, y = us_y_axis, color = us_color_group,
-                title= 'Scatter plot of Selected Features').update_layout(
+    fig = px.scatter(df, x = us_x_axis, y = us_y_axis, color = us_color_group, color_continuous_scale=px.colors.sequential.Blues,
+                title= 'Scatter Plot of Selected Features').update_layout(
                 xaxis_title= us_x_axis, yaxis_title= us_y_axis)
 elif us_plot_type == 'Histogramm':
     fig = px.histogram(df, x = us_x_axis, 
-                title= 'Histogramm plot of Selected Features').update_layout(
+                title= 'Histogramm Plot of Selected Features').update_layout(
                 xaxis_title= us_x_axis, yaxis_title= 'count')
 elif us_plot_type == 'Line Plot':
-    fig = px.line(df, x = us_x_axis, y = us_y_axis, 
-                title= 'Line plot of Selected Features').update_layout(
+    fig = px.line(df, x = us_x_axis, y = us_y_axis, color = us_color_group,
+                title= 'Line Plot of Selected Features').update_layout(
                 xaxis_title= us_x_axis, yaxis_title= us_y_axis)
 elif us_plot_type == 'Box Plot':
-    fig = px.box(df, x = us_x_axis, y = us_y_axis, 
-                title= 'Box plot of Selected Features').update_layout(
+    fig = px.box(df, x = us_x_axis, y = us_y_axis, color = us_color_group, color_continuous_scale=px.colors.sequential.Blues,
+                title= 'Box Plot of Selected Features').update_layout(
                 xaxis_title= us_x_axis, yaxis_title= us_y_axis)
 elif us_plot_type == 'Heatmap of count':
     heatmap_df = pd.DataFrame(df.groupby([us_x_axis, us_y_axis])[us_x_axis].count())
@@ -190,13 +186,23 @@ elif us_plot_type == 'Heatmap of count':
     
 st.plotly_chart(fig)
 
+st.write('Click button if you want to create a correlation matrix of the continuous variables:')
+use_cor_matrix = st.button("Correlation Matrix")
+
+if use_cor_matrix:
+    st.subheader("Correlation Matrix of Continuous Variables")
+    corr_matrix = df.corr()
+    fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues) # reverse color by adding "_r" (eg. Blues_r) 
+    st.plotly_chart(fig)
+
+
 st.markdown("""---""")
 
 # ------------- Data Preprocessinng --------------
 
 st.header('Data Preprocessing')
 st.write("NA-values will automatically be filled (numerical variables by their mean and categorical by their mode) \
-         alternatively all rows with NA-values can droped.")
+         alternatively all instances with NA-values can be droped.")
 st.write("")
 
 # find column type
@@ -209,7 +215,7 @@ cat_cols = df.select_dtypes(include=['object', 'bool']).columns
 
 NA_handling = {
     'fill NA (mean/mode)' : 'fill_na',
-    'drop rows with NA' : 'drop_na'
+    'drop instances with NA' : 'drop_na'
 }
 
 us_na_handling = st.radio('Do you want to fill or drop the NA?', NA_handling.keys(), horizontal=True, index=0)
@@ -225,7 +231,7 @@ if us_na_handling == 'fill NA (mean/mode)':
         df = df[num_cols].fillna(df[num_cols].mean())
     elif len(cat_cols) > 0:
         df = df[cat_cols].fillna(df[cat_cols].mode())
-elif us_na_handling == 'drop rows with NA':
+elif us_na_handling == 'drop instances with NA':
     df = df.dropna()
     df = df.reset_index()
 
@@ -239,17 +245,17 @@ if n_duplicate_rows > 0:
 
     dup_handling = {
         'leave as is' : 'leave',
-        'drop dupplicate rows' : 'drop'
+        'drop dupplicate instances' : 'drop'
     }
 
-    us_dup_handling = st.radio('How do you want to handle the dupplicate rows?', dup_handling.keys(), horizontal=True, index=0)
+    us_dup_handling = st.radio('How do you want to handle the dupplicate instances?', dup_handling.keys(), horizontal=True, index=0)
     
 
     if dup_handling[us_dup_handling] == 'drop':
         df = df.drop_duplicates(df)
-        st.warning('There were '+ str(n_duplicate_rows) +' dupplicated rows, where duplicates have been removed')
+        st.warning('There were '+ str(n_duplicate_rows) +' dupplicated instances, where duplicates have been removed')
     else:
-        st.warning('There are '+ str(n_duplicate_rows) +' dupplicate rows', icon="⚠️")
+        st.warning('There are '+ str(n_duplicate_rows) +' dupplicate instances', icon="⚠️")
 
 # PCA
 # info_PCA = st.button("ℹ️")
@@ -409,19 +415,20 @@ if len(us_dummie_var) > 0:
     df = pd.concat([df, df_dummies], axis = 1)
 
 
-st.subheader("dataframe after cleaning")
+st.subheader("Dataframe After Preprocessing")
 st.dataframe(df.head().style.set_precision(2))
+st.subheader("Column Info")
 st.dataframe(show_info(df))
 
 n_row, n_col = df.shape
-st.write(n_col, " features, ", n_row, " rows, ", df.size, " total elements")
+st.write(n_col, " features, ", n_row, " instances, ", df.size, " total elements")
 
 @st.cache_data
 def convert_df_to_csv(df):
   # IMPORTANT: Cache the conversion to prevent computation on every rerun
   return df.to_csv().encode('utf-8')
 
-st.subheader("Download the preprocessed data")
+st.subheader("Download the Preprocessed Data")
 st.download_button(
   label="Download as CSV",
   data=convert_df_to_csv(df),
@@ -433,10 +440,10 @@ st.markdown("""---""")
 
 # ------------- Data Splitting, Scaling and transform to array for model --------------
 
-st.header('Dependent and Independent Variable Selection')
+st.header('Target and Feature Selection')
 st.write('')
 
-st.subheader('Choose your Y')
+st.subheader('Choose your Target ( Y )')
 
 us_y_var = st.selectbox(
     'Which column do you want as dependent variable?',
@@ -448,7 +455,7 @@ us_y_var = st.selectbox(
 # x_options_scal_df = scaler.fit_transform(x_options_df)
 
 
-st.subheader('Choose your X')
+st.subheader('Choose your Features ( X )')
 x_options_df = df.drop(columns=[us_y_var])
 cat_cols_x = x_options_df.select_dtypes(include=['object', 'bool']).columns
 x_options_df = x_options_df.drop(cat_cols_x, axis = 1)
@@ -457,8 +464,8 @@ if len(cat_cols_x) > 0:
                 Please recode as dummies otherwise they can only be used as dependent variable.', icon="⚠️")
 
 
-st.write('Do you want to drop Columns with 0 variance?')
-use_variance_threshold = st.button("drop columns with 0 variance")
+st.write('Do you want to drop features with 0 variance?')
+use_variance_threshold = st.button("Drop Features with 0 Variance")
 
 if use_variance_threshold:
     try:
@@ -485,24 +492,24 @@ us_x_var = st.multiselect(
 y_ser = df[us_y_var]
 X_df = df[us_x_var]
 
-st.subheader('See selected variables')
+st.subheader('See Selected Variables')
 
-st.write('chosen dependent variable')
+st.write('Chosen target:')
 
 col1, col2 = st.columns((0.25, 0.75))
-col1.dataframe(y_ser)
+col1.dataframe(y_ser[0:1000])
 
 fig = px.histogram(df, x= us_y_var )
 col2.plotly_chart(fig, use_container_width=True)
 
-st.write('chosen independent variable')
-st.dataframe(X_df.head().style.set_precision(2))
+st.write('Chosen features:')
+st.dataframe(X_df.head(1000).style.set_precision(2))
 n_row, n_col = X_df.shape
-st.write(n_col, " features, ", n_row, " rows, ", df.size, " total elements")
+st.write(n_col, " features, ", n_row, " instances, ", df.size, " total elements")
 
 st.markdown("""---""")
 
-st.header('Launch the desired models')
+st.header('Launch Model Training and Prediction')
 descr_model_launch = 'Regression models are only launchable if the chosen dependen variable is a number and \
 classification models in turn, only if it is of type bool, object or int. \
 Time Series analysis is only callable if at least one feature has been recoded as date.'
@@ -658,11 +665,11 @@ if len(cat_cols_x) > 0:
 if us_y_var in reg_cols and len(cat_cols_x) == 0:
 
     st.markdown("""---""")
-    st.subheader("Launch auto regression models")
+    st.subheader("Regression Models")
 
     us_reg_models = st.multiselect('What regression models do you want to launch and compare?', regression_models.keys(), default= list(regression_models.keys()))
 
-    start_reg_models = st.button("Start regression analysis")
+    start_reg_models = st.button("Start Regression Analysis")
 
     # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
 
@@ -704,22 +711,22 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
 
         # plot model value vs actual
         fig = px.scatter(reg_pred_y_df, x = use_reg_model, y = 'y_test', 
-                    title= 'Model Prediction vs Y Test - ' + use_reg_model).update_layout(
-                    xaxis_title="model prediction", yaxis_title="y test")
+                    title= 'Model Prediction vs True Target Value - ' + use_reg_model).update_layout(
+                    xaxis_title="Model Prediction", yaxis_title="True Target Value")
         fig = fig.add_traces(px.line(reg_pred_y_df, x='y_test', y='y_test', color_discrete_sequence=["yellow"]).data)
         st.plotly_chart(fig)
 
         # plot histogramm of residuals
         fig = px.histogram(reg_res_y_df, x = use_reg_model,
                     title="Histogramm of Residuals - " + use_reg_model).update_layout(
-                    xaxis_title="residuals")
+                    xaxis_title="Residuals")
 
         st.plotly_chart(fig)
 
-        # plot residuals and y test
+        # plot residuals and True Target Value
         fig = px.scatter(reg_res_y_df, x = 'y_test', y = use_reg_model,
-                    title="Residuals and Y Test - " + use_reg_model).update_layout(
-                    xaxis_title="y test", yaxis_title="residuals")
+                    title="Residuals and True Target Value - " + use_reg_model).update_layout(
+                    xaxis_title="True Target Value", yaxis_title="Residuals")
 
         st.plotly_chart(fig)
 
@@ -742,10 +749,10 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
     st.markdown("""---""")
 
     
-    st.subheader("Launch auto classification models")
+    st.subheader("Classification Models")
 
     us_clas_models = st.multiselect('What classification models do you want to launch and compare?', classifier_models.keys(), default= list(classifier_models.keys()))
-    start_clas_models = st.button("Start classification analysis")
+    start_clas_models = st.button("Start Classification Analysis")
 
     # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
 
@@ -873,7 +880,7 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
 if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
 
     st.markdown("""---""")
-    st.subheader("Launch auto time series models")
+    st.subheader("Regression Models on Time Series")
     us_ts_models = st.multiselect('What regression models do you want to launch and compare for the time series?', regression_models.keys(), default= list(regression_models.keys()))
 
     start_ts_models = st.button("Start Time Series Analysis")
@@ -950,7 +957,7 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
 
         st.plotly_chart(fig)
 
-        # plot residuals and y test
+        # plot residuals and True Target Value
         ts_res_y_df['Datetime_index'] = ts_res_y_df.index # two y doesn't work on index appearently
         fig = px.bar(ts_res_y_df, x = 'Datetime_index', y = use_ts_model,
                     title="Residuals over Datetime - " + use_ts_model).update_layout(
