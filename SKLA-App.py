@@ -15,6 +15,7 @@
 import streamlit as st
 from streamlit_option_menu import option_menu 
 from PIL import Image
+from datetime import datetime, date, timedelta
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
@@ -256,6 +257,8 @@ if n_duplicate_rows > 0:
         st.warning('There were '+ str(n_duplicate_rows) +' dupplicated instances, where duplicates have been removed')
     else:
         st.warning('There are '+ str(n_duplicate_rows) +' dupplicate instances', icon="⚠️")
+else: 
+    us_dup_handling = st.radio('There are no duplicates in the dataset:', ['no action necessary'], horizontal=True, index=0)
 
 # PCA
 # info_PCA = st.button("ℹ️")
@@ -277,6 +280,7 @@ def pca_on_us_col(df):
     pca_transformed_df = pca.fit_transform(pca_scaled_df)
     pca_expl = pca.explained_variance_ratio_ # variance explained by the dimension
     pca_vars = [str(round(i, 2)) for i in pca_expl]
+    st.write('dimensions explaining min. 95% of the variance will be kept:')
     for i in range(len(pca_vars)):
         st.write('pca' , i , ': explained variance = ' , pca_vars[i])
 
@@ -446,7 +450,7 @@ st.write('')
 st.subheader('Choose your Target ( Y )')
 
 us_y_var = st.selectbox(
-    'Which column do you want as dependent variable?',
+    'Which column do you want to predict?',
     df.columns)
 
 
@@ -461,13 +465,18 @@ x_options_df = df.drop(columns=[us_y_var])
 cat_cols_x = x_options_df.select_dtypes(include=['object', 'bool']).columns
 x_options_df = x_options_df.drop(cat_cols_x, axis = 1)
 if len(cat_cols_x) > 0:
-    st.warning('Models can not be launched with categroical independent variables '+str(list(cat_cols_x))+'.\
+    st.warning('Models can not be launched with categroical features '+str(list(cat_cols_x))+'.\
                 Please recode as dummies otherwise they can only be used as dependent variable.', icon="⚠️")
 
 
-use_variance_threshold = st.radio("Do you want to drop features with 0 variance?", [False, True], horizontal= True)
+variance_threshold_options = {
+        'no' : False,
+        'search and drop' : True
+    }
 
-if use_variance_threshold:
+use_variance_threshold = st.radio("Do you want to look for and drop features with 0 variance?", variance_threshold_options.keys(), horizontal= True)
+
+if variance_threshold_options[use_variance_threshold]:
     try:
         # variancetreshold = st.number_input("Feature Selection with minimal variance within feature", min_value=0.0, max_value=1.0, value=0.0)
         n_col_before = len(x_options_df.columns)
@@ -484,7 +493,7 @@ if use_variance_threshold:
         st.warning('Could not perform variance reduction.', icon="⚠️")
 
 us_x_var = st.multiselect(
-    'Which columns do you want as independent variable?',
+    'Which columns do you want as inputs for the prediction?',
     list(x_options_df),
     default=list(x_options_df))
 
@@ -649,13 +658,21 @@ def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
 
 # function for splitting (last 1 - test size percent of time series), that outputs arrays for time series
 @st.cache_data(ttl = time_to_live_cache) 
-def split_timeseries(X_df_ts, y_ser_ts, us_test_size, us_scaler_key):
+def split_timeseries(X_df_ts, y_ser_ts, us_start_date, us_end_date, us_scaler_key): # us_test_size
     train_size = (1-us_test_size)
     
-    X_train_df_ts = X_df_ts[:round(len(X_df_ts)*train_size)]
-    X_test_df_ts = X_df_ts[-(len(X_df_ts)-round(len(X_df_ts)*train_size)):]
-    y_train_df_ts = y_ser_ts[:round(len(y_ser_ts)*train_size)]
-    y_test_df_ts = y_ser_ts[-(len(y_ser_ts)-round(len(y_ser_ts)*train_size)):]
+    us_start_date = datetime.combine(us_start_date, datetime.min.time())
+    us_end_date = datetime.combine(us_end_date, datetime.min.time())
+
+    X_train_df_ts = X_df_ts.loc[X_df_ts.index < us_start_date]
+    X_test_df_ts = X_df_ts.loc[(X_df_ts.index >= us_start_date) & (X_df_ts.index <= us_end_date)]
+    y_train_df_ts = y_ser_ts.loc[y_ser_ts.index < us_start_date]
+    y_test_df_ts = y_ser_ts.loc[(y_ser_ts.index >= us_start_date) & (y_ser_ts.index <= us_end_date)]
+
+    # X_train_df_ts = X_df_ts[:round(len(X_df_ts)*train_size)]
+    # X_test_df_ts = X_df_ts[-(len(X_df_ts)-round(len(X_df_ts)*train_size)):]
+    # y_train_df_ts = y_ser_ts[:round(len(y_ser_ts)*train_size)]
+    # y_test_df_ts = y_ser_ts[-(len(y_ser_ts)-round(len(y_ser_ts)*train_size)):]
     
     train_ts_index = y_train_df_ts.index
     test_ts_index = y_test_df_ts.index
@@ -938,6 +955,27 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
 
     st.markdown("""---""")
     st.subheader("Regression Models on Time Series")
+
+    # dates for input
+
+    # beginning prediction period
+    min_date = min(ts_index)
+    b_min_date = min_date.to_pydatetime()
+    max_date = max(ts_index)
+    max_date = max_date.to_pydatetime()
+    b_max_date = max_date - timedelta(days=1)
+    days_20pct = ((max_date - min_date) *0.2).days
+    defalut_beg_day = max_date - timedelta(days=days_20pct)
+
+    us_start_date = st.date_input("Beginning of prediction period", value = defalut_beg_day, min_value = b_min_date, max_value=b_max_date)
+    
+    # end prediction period
+    e_min_date = us_start_date + timedelta(days=1)
+    e_max_date = max_date
+
+    us_end_date = st.date_input("End of prediction period", value = e_max_date, min_value = e_min_date, max_value=e_max_date)
+
+    # time series regression model selection
     us_ts_models = st.multiselect('What regression models do you want to launch and compare for the time series?', regression_models.keys(), default= list(regression_models.keys()))
 
     
@@ -959,22 +997,33 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
     if "ts_model_selection" not in st.session_state:
         st.session_state.ts_model_selection = us_ts_models
 
+    if "ts_start_date" not in st.session_state:
+        st.session_state.ts_start_date = us_start_date
+
+    if "ts_end_date" not in st.session_state:
+        st.session_state.ts_end_date = us_end_date
+
     check_ts_models_no_change = st.session_state.ts_model_selection == us_ts_models
+    check_ts_start_date_no_change = st.session_state.ts_start_date == us_start_date
+    check_ts_end_date_no_change = st.session_state.ts_end_date == us_end_date
       
         
 
     if (start_ts_models or (st.session_state.start_ts_models_state 
                             and check_y_no_change 
                             and check_x_no_change
-                            and check_test_size_no_change
                             and check_scaler_no_change
-                            and check_ts_models_no_change)):
+                            and check_ts_models_no_change
+                            and check_ts_start_date_no_change
+                            and check_ts_end_date_no_change)):
         st.session_state.start_ts_models_state = True
         st.session_state.y_var_user = us_y_var
         st.session_state.x_var_user = us_x_var
         st.session_state.test_size_user = us_test_size
         st.session_state.scaler_user = us_scaler_key
         st.session_state.ts_model_selection = us_ts_models
+        st.session_state.ts_start_date = us_start_date
+        st.session_state.ts_end_date = us_end_date
         
 
         # remove dupplicate function that keeps last version of index
@@ -994,7 +1043,7 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
         y_ser_ts = df_ts[us_y_var]
         X_df_ts = df_ts[us_x_var]
 
-        X_train_ts, X_test_ts, y_train_ts, y_test_ts, train_ts_index, test_ts_index = split_timeseries(X_df_ts, y_ser_ts, us_test_size, us_scaler_key)
+        X_train_ts, X_test_ts, y_train_ts, y_test_ts, train_ts_index, test_ts_index = split_timeseries(X_df_ts, y_ser_ts, us_start_date, us_end_date, us_scaler_key)
 
         ts_scores_df, ts_pred_y_df, ts_res_y_df = reg_models_comparison(X_train_ts, X_test_ts, y_train_ts, y_test_ts, us_ts_models)
 
