@@ -594,6 +594,14 @@ regression_models = {'RandomForestRegressor': RandomForestRegressor(),
 @st.cache_data(ttl = time_to_live_cache) 
 def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
 
+    # progress bar
+    progress_text = us_reg_models.copy()
+    progress_text.append('complete')
+    my_bar = st.progress(0, text=str(progress_text[0]))
+    increment_progress = int(round(100 / len(us_reg_models), 0))
+    text_counter = 0
+    percent_complete = 0
+
     # init values to be stored
     modelnames = []
     r2_scores = []
@@ -615,6 +623,12 @@ def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
         mae_scores.append(round(mae, 4))
         predictions[i] = y_test_predict
         residuals[i] = (y_test_predict - y_test)
+
+        text_counter += 1
+        percent_complete += increment_progress
+        percent_complete = min(100, percent_complete)
+        my_bar.progress(percent_complete, text=str(progress_text[text_counter]))
+        
         
     # create score dataframe
     reg_scores_df = pd.DataFrame({'Model': modelnames, 'R2': r2_scores, 'MAE': mae_scores})
@@ -700,6 +714,8 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
         st.session_state.test_size_user = us_test_size
         st.session_state.scaler_user = us_scaler_key
         st.session_state.reg_model_selection = us_reg_models
+
+        
 
         # run splitting
         X_train, X_test, y_train, y_test = split_normalize(X_df, y_ser, us_test_size, us_scaler_key)
@@ -804,6 +820,14 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
         @st.cache_data(ttl = time_to_live_cache) 
         def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
             
+            # progress bar
+            progress_text = us_clas_models.copy()
+            progress_text.append('complete')
+            my_bar = st.progress(0, text=str(progress_text[0]))
+            increment_progress = int(round(100 / len(us_clas_models), 0))
+            text_counter = 0
+            percent_complete = 0
+           
             # init values to be stored
             modelnames = []
             accuracy_scores = []
@@ -832,6 +856,11 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
                 w_f1_scores.append(round(f1, 4))
                 predictions[i] = y_test_predict
                 class_labels[i] = list(m_clas.classes_)
+
+                text_counter += 1
+                percent_complete += increment_progress
+                percent_complete = min(100, percent_complete)
+                my_bar.progress(percent_complete, text=str(progress_text[text_counter]))
                 
             # create score dataframe
             clas_scores_df = pd.DataFrame({'Model': modelnames, 'Accuracy': accuracy_scores, 'Precision': w_precision_scores, 'Recall': w_recall_scores, 'F1': w_f1_scores})
