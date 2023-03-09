@@ -162,7 +162,7 @@ if us_plot_type not in ['Histogramm','Heatmap of count']:
 # plot user selected features
 
 if us_plot_type == 'Scatter Plot':
-    fig = px.scatter(df, x = us_x_axis, y = us_y_axis, color = us_color_group, color_continuous_scale=px.colors.sequential.Blues,
+    fig = px.scatter(df, x = us_x_axis, y = us_y_axis, color = us_color_group, color_continuous_scale=px.colors.sequential.Blues_r,
                 title= 'Scatter Plot of Selected Features').update_layout(
                 xaxis_title= us_x_axis, yaxis_title= us_y_axis)
 elif us_plot_type == 'Histogramm':
@@ -174,7 +174,7 @@ elif us_plot_type == 'Line Plot':
                 title= 'Line Plot of Selected Features').update_layout(
                 xaxis_title= us_x_axis, yaxis_title= us_y_axis)
 elif us_plot_type == 'Box Plot':
-    fig = px.box(df, x = us_x_axis, y = us_y_axis, color = us_color_group, color_continuous_scale=px.colors.sequential.Blues,
+    fig = px.box(df, x = us_x_axis, y = us_y_axis, color = us_color_group, color_continuous_scale=px.colors.sequential.Blues_r,
                 title= 'Box Plot of Selected Features').update_layout(
                 xaxis_title= us_x_axis, yaxis_title= us_y_axis)
 elif us_plot_type == 'Heatmap of count':
@@ -182,7 +182,7 @@ elif us_plot_type == 'Heatmap of count':
     heatmap_df.rename(columns={us_x_axis: "count"}, inplace=True)
     heatmap_df.reset_index(inplace = True)
     heatmap_df = heatmap_df.pivot(index=us_y_axis, columns=us_x_axis)['count'].fillna(0)
-    fig = px.imshow(heatmap_df, x=heatmap_df.columns, y=heatmap_df.index, title= 'Heatmap of Count for Selected Features', text_auto=True, color_continuous_scale=px.colors.sequential.Blues)
+    fig = px.imshow(heatmap_df, x=heatmap_df.columns, y=heatmap_df.index, title= 'Heatmap of Count for Selected Features', text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r)
     
 st.plotly_chart(fig)
 
@@ -192,7 +192,7 @@ use_cor_matrix = st.button("Correlation Matrix")
 if use_cor_matrix:
     st.subheader("Correlation Matrix of Continuous Variables")
     corr_matrix = df.corr()
-    fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues) # reverse color by adding "_r" (eg. Blues_r) 
+    fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r) # reverse color by adding "_r" (eg. Blues_r) 
     st.plotly_chart(fig)
 
 
@@ -838,7 +838,7 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
         conf_matrix_df.reset_index(inplace = True)
         conf_matrix_df = conf_matrix_df.pivot(index='y_test', columns=us_clas_model_result)['count'].fillna(0)
         fig = px.imshow(conf_matrix_df, x=conf_matrix_df.columns, y=conf_matrix_df.index, title= 'Confusionmatrix - ' + us_clas_model_result
-                        , text_auto=True, color_continuous_scale=px.colors.sequential.Blues).update_layout(
+                        , text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r).update_layout(
                         xaxis_title="predicted label", yaxis_title="true label")
         st.plotly_chart(fig)
 
