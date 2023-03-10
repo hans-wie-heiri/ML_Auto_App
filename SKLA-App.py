@@ -8,29 +8,10 @@
 # - feature importance ?
 # - add xg boost ?
 
-# ------------- Linbraries --------------
+# ------------- Libraries & Project Specific Functions --------------
 
-import streamlit as st
-from streamlit_option_menu import option_menu 
-from PIL import Image
-from datetime import datetime, date, timedelta
-import plotly.graph_objects as go
-import plotly.express as px
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder, StandardScaler, RobustScaler, MinMaxScaler, OneHotEncoder
-from sklearn.pipeline import Pipeline
-from sklearn.compose import ColumnTransformer
-from sklearn.impute import SimpleImputer
-from sklearn.metrics import mean_absolute_error, classification_report,accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor, RandomForestClassifier
-from sklearn.linear_model import LinearRegression, LogisticRegression, Perceptron
-from sklearn.dummy import DummyRegressor, DummyClassifier
-from sklearn.svm import SVR, SVC, LinearSVR
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.feature_selection import VarianceThreshold
-from sklearn.decomposition import PCA
+
+from Libs_Functions_SKLA import *
 
 
 # ------------- Settings --------------
@@ -51,8 +32,6 @@ st.image(image, use_column_width=True)
 # st.title(page_title + " " + page_icon)
 st.write(page_description)
 
-# Cache
-time_to_live_cache = 3600 # Cache data for 1 hour (=3600 seconds)
 
 # ------------- hide streamlit style --------------
 
@@ -91,10 +70,7 @@ use_csv_name = st.selectbox('**select dataset from list**', options= csv_name)
 uploaded_file = st.file_uploader("**or upload your own**")
 
 
-@st.cache_data(ttl = time_to_live_cache)  # Add the caching decorator
-def load_data(url, sep):
-    df = pd.read_csv(url, sep)
-    return df
+
 
 
 if uploaded_file is None:
@@ -120,24 +96,6 @@ st.subheader("First 1'000 Entries of the Dataframe - " + df_name)
 st.dataframe(df.head(1000).style.set_precision(2))
 n_row, n_col = df.shape
 st.write(n_col, " features, ", n_row, " instances, ", df.size, " total elements")
-
-## show col info function
-
-def show_info(df):
-    colnames = []
-    is_na = []
-    is_not_na = []
-    is_unique = []
-    is_type = []
-    for i in df.columns:
-        colnames.append(i)
-        is_type.append(df[i].dtype)
-        n_na = df[i].isna().sum()
-        is_na.append(n_na)
-        is_not_na.append(len(df[i]) - n_na)
-        is_unique.append(len(df[i].unique()))
-    df_col_info = pd.DataFrame({'columns' : colnames, 'n_non_null': is_not_na, 'n_null': is_na, 'n_unique': is_unique, 'type': is_type})
-    return df_col_info
 
 st.subheader("Column Info")
 st.dataframe(show_info(df))
@@ -224,16 +182,7 @@ NA_handling = {
 us_na_handling = st.radio('Do you want to fill or drop the NA?', NA_handling.keys(), horizontal=True, index=0)
 
 if us_na_handling == 'fill NA (mean/mode)':
-    if len(num_cols) > 0 and len(cat_cols) > 0:
-        # fill NA
-        df_num = df[num_cols].fillna(df[num_cols].mean())
-        df_cat = df[cat_cols].fillna(df[cat_cols].mode())
-        df = pd.concat([df_num, df_cat], axis = 1)
-    # the elif repeat above steps but only for one kind of variables
-    elif len(num_cols) > 0:
-        df = df[num_cols].fillna(df[num_cols].mean())
-    elif len(cat_cols) > 0:
-        df = df[cat_cols].fillna(df[cat_cols].mode())
+    df = fill_na_mean_mode(df)
 elif us_na_handling == 'drop instances with NA':
     df = df.dropna()
     df = df.reset_index()
@@ -272,26 +221,8 @@ us_pca_var = st.multiselect(
     num_cols, default=None)
 
 
-def pca_on_us_col(df):
-    pca_df = df[us_pca_var]
-
-    scaler = StandardScaler().set_output(transform="pandas")
-    pca_scaled_df = scaler.fit_transform(pca_df)
-    
-    pca = PCA(0.95).set_output(transform="pandas") # keep explaning dimensions 95% of the variance 
-    pca_transformed_df = pca.fit_transform(pca_scaled_df)
-    pca_expl = pca.explained_variance_ratio_ # variance explained by the dimension
-    pca_vars = [str(round(i, 2)) for i in pca_expl]
-    st.write('dimensions explaining min. 95% of the variance will be kept:')
-    for i in range(len(pca_vars)):
-        st.write('pca' , i , ': explained variance = ' , pca_vars[i])
-
-    df = df.drop(df[us_pca_var], axis = 1)
-    df = pd.concat([df, pca_transformed_df], axis = 1)
-    return df
-
 if len(us_pca_var) > 0:
-    df = pca_on_us_col(df)
+    df = pca_on_us_col(df, us_pca_var)
     
 
 
@@ -670,11 +601,6 @@ def split_timeseries(X_df_ts, y_ser_ts, us_start_date, us_end_date, us_scaler_ke
     X_test_df_ts = X_df_ts.loc[(X_df_ts.index >= us_start_date) & (X_df_ts.index <= us_end_date)]
     y_train_df_ts = y_ser_ts.loc[y_ser_ts.index < us_start_date]
     y_test_df_ts = y_ser_ts.loc[(y_ser_ts.index >= us_start_date) & (y_ser_ts.index <= us_end_date)]
-
-    # X_train_df_ts = X_df_ts[:round(len(X_df_ts)*train_size)]
-    # X_test_df_ts = X_df_ts[-(len(X_df_ts)-round(len(X_df_ts)*train_size)):]
-    # y_train_df_ts = y_ser_ts[:round(len(y_ser_ts)*train_size)]
-    # y_test_df_ts = y_ser_ts[-(len(y_ser_ts)-round(len(y_ser_ts)*train_size)):]
     
     train_ts_index = y_train_df_ts.index
     test_ts_index = y_test_df_ts.index
