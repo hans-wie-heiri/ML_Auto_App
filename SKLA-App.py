@@ -753,7 +753,7 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
         st.dataframe(reg_scores_df.style.set_precision(4))
 
 
-        use_reg_model = st.radio('show results for:', reg_scores_df.Model) 
+        use_reg_model = st.radio('show results for:', reg_scores_df.Model, key='use_reg_model') 
 
         # plot model value vs actual
         fig = px.scatter(reg_pred_y_df, x = use_reg_model, y = 'y_test', 
