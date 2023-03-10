@@ -170,9 +170,6 @@ poetry.toml
 ### specific for this project ###
 
 *.ipynb
-*.csv
-*.xlsx
-local_data/
-images/
+image_creation_archive/
 
 # End of https://www.toptal.com/developers/gitignore/api/python

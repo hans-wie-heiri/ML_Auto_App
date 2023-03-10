@@ -78,12 +78,12 @@ st.subheader("Choose the Data")
 
 
 csv_options = {
-    'winequality': ['local_data/winequality-red.csv', ';'],
-    'california housing': ['https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv', ','],
-    'breast cancer': ['local_data/breast_cancer.csv', ','], 
-    'bioactivity acetylcholinesterase': ['local_data/acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', ','],
-    'energy consumption hourly': ['https://raw.githubusercontent.com/archd3sai/Hourly-Energy-Consumption-Prediction/master/PJME_hourly.csv' , ','],
-    'Konsumentenpreise Index Mai 2000': ['local_data/Konsumentenpreise_Index_Mai_2000.csv', ';']
+    'California Housing': ['https://raw.githubusercontent.com/sonarsushant/California-House-Price-Prediction/master/housing.csv', ','],
+    'Winequality': ['local_data/winequality-red.csv', ';'],
+    'Breast Cancer': ['local_data/breast_cancer.csv', ','], 
+    'Bioactivity Acetylcholinesterase': ['local_data/acetylcholinesterase_06_bioactivity_data_3class_pIC50_pubchem_fp.csv', ','],
+    'Energy Consumption Hourly': ['https://raw.githubusercontent.com/archd3sai/Hourly-Energy-Consumption-Prediction/master/PJME_hourly.csv' , ','],
+    'Consumer Price Index Switzerland (May 2000 = 100)': ['local_data/Konsumentenpreise_Index_Mai_2000.csv', ';']
 }
 
 csv_name = [i for i in csv_options]
@@ -175,7 +175,7 @@ elif us_plot_type == 'Line Plot':
                 title= 'Line Plot of Selected Features').update_layout(
                 xaxis_title= us_x_axis, yaxis_title= us_y_axis)
 elif us_plot_type == 'Box Plot':
-    fig = px.box(df, x = us_x_axis, y = us_y_axis, color = us_color_group, color_continuous_scale=px.colors.sequential.Blues_r,
+    fig = px.box(df, x = us_x_axis, y = us_y_axis, color = us_color_group,
                 title= 'Box Plot of Selected Features').update_layout(
                 xaxis_title= us_x_axis, yaxis_title= us_y_axis)
 elif us_plot_type == 'Heatmap of count':
