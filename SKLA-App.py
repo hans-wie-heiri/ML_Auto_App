@@ -37,7 +37,7 @@ from sklearn.decomposition import PCA
 
 # ------------- Settings --------------
 
-page_title = 'SK Learn Automation'
+page_title = 'Machine Learning Automation'
 page_description = 'This App automates predictive data analysis with the [scikit-learn](https://scikit-learn.org/stable/index.html) API. \
 It is functional and automates the process steps for a small data science project or a first shot at model selection. \
 The application does not claim to replace a full and comprehensive Data Science Project. \
