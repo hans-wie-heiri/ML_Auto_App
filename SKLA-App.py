@@ -1,6 +1,4 @@
 # ------------- ToDo List --------------
-# - add progress bar
-# - sort plot x axis
 # - crashproove
 # - add clustering ?
 # - st.experimental_data_editor make dataframe editable ?
@@ -165,19 +163,23 @@ if us_plot_type not in ['Histogramm','Heatmap of count']:
 if us_plot_type == 'Scatter Plot':
     fig = px.scatter(df, x = us_x_axis, y = us_y_axis, color = us_color_group, color_continuous_scale=px.colors.sequential.Blues_r,
                 title= 'Scatter Plot of Selected Features').update_layout(
-                xaxis_title= us_x_axis, yaxis_title= us_y_axis)
+                xaxis_title= us_x_axis, yaxis_title= us_y_axis).update_xaxes(
+                categoryorder='category ascending')
 elif us_plot_type == 'Histogramm':
     fig = px.histogram(df, x = us_x_axis, 
                 title= 'Histogramm Plot of Selected Features').update_layout(
-                xaxis_title= us_x_axis, yaxis_title= 'count')
+                xaxis_title= us_x_axis, yaxis_title= 'count').update_xaxes(
+                categoryorder='category ascending')
 elif us_plot_type == 'Line Plot':
     fig = px.line(df, x = us_x_axis, y = us_y_axis, color = us_color_group,
                 title= 'Line Plot of Selected Features').update_layout(
-                xaxis_title= us_x_axis, yaxis_title= us_y_axis)
+                xaxis_title= us_x_axis, yaxis_title= us_y_axis).update_xaxes(
+                categoryorder='category ascending')
 elif us_plot_type == 'Box Plot':
     fig = px.box(df, x = us_x_axis, y = us_y_axis, color = us_color_group,
                 title= 'Box Plot of Selected Features').update_layout(
-                xaxis_title= us_x_axis, yaxis_title= us_y_axis)
+                xaxis_title= us_x_axis, yaxis_title= us_y_axis).update_xaxes(
+                categoryorder='category ascending')
 elif us_plot_type == 'Heatmap of count':
     heatmap_df = pd.DataFrame(df.groupby([us_x_axis, us_y_axis])[us_x_axis].count())
     heatmap_df.rename(columns={us_x_axis: "count"}, inplace=True)
@@ -185,7 +187,7 @@ elif us_plot_type == 'Heatmap of count':
     heatmap_df = heatmap_df.pivot(index=us_y_axis, columns=us_x_axis)['count'].fillna(0)
     fig = px.imshow(heatmap_df, x=heatmap_df.columns, y=heatmap_df.index, title= 'Heatmap of Count for Selected Features', text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r)
     
-st.plotly_chart(fig)
+st.plotly_chart(fig, use_container_width=True)
 
 st.write('Click button if you want to create a correlation matrix of the continuous variables:')
 use_cor_matrix = st.button("Correlation Matrix")
@@ -194,7 +196,7 @@ if use_cor_matrix:
     st.subheader("Correlation Matrix of Continuous Variables")
     corr_matrix = df.corr()
     fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r) # reverse color by adding "_r" (eg. Blues_r) 
-    st.plotly_chart(fig)
+    st.plotly_chart(fig, use_container_width=True)
 
 
 st.markdown("""---""")
@@ -747,7 +749,7 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
         fig = px.bar(reg_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
             title="Model Comparison on R2 (floored at 0)")
         fig['layout']['yaxis']['autorange'] = "reversed"
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         # show tabel of model scores
         st.dataframe(reg_scores_df.style.set_precision(4))
@@ -760,21 +762,21 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
                     title= 'Model Prediction vs True Target Value - ' + use_reg_model).update_layout(
                     xaxis_title="Model Prediction", yaxis_title="True Target Value")
         fig = fig.add_traces(px.line(reg_pred_y_df, x='y_test', y='y_test', color_discrete_sequence=["yellow"]).data)
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         # plot histogramm of residuals
         fig = px.histogram(reg_res_y_df, x = use_reg_model,
                     title="Histogramm of Residuals - " + use_reg_model).update_layout(
                     xaxis_title="Residuals")
 
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         # plot residuals and True Target Value
         fig = px.scatter(reg_res_y_df, x = 'y_test', y = use_reg_model,
                     title="Residuals and True Target Value - " + use_reg_model).update_layout(
                     xaxis_title="True Target Value", yaxis_title="Residuals")
 
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
 
 
@@ -901,7 +903,7 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
         
         fig = px.bar(clas_scores_df, x = 'Accuracy', y = 'Model', orientation = 'h', color = 'Accuracy')
         fig['layout']['yaxis']['autorange'] = "reversed"
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         st.dataframe(clas_scores_df.style.set_precision(4))
 
@@ -914,15 +916,15 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
         fig = px.imshow(conf_matrix_df, x=conf_matrix_df.columns, y=conf_matrix_df.index, title= 'Confusionmatrix - ' + us_clas_model_result
                         , text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r).update_layout(
                         xaxis_title="predicted label", yaxis_title="true label")
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         fig = px.histogram(clas_pred_y_df, x = 'y_test', title = 'Histogram of True Values -' + us_clas_model_result).update_layout(
         xaxis_title="True Values")
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         fig = px.histogram(clas_pred_y_df, x = us_clas_model_result, title = 'Histogram of Predicted Values - ' + us_clas_model_result).update_layout(
         xaxis_title="Predicted Values")
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         @st.cache_data(ttl = time_to_live_cache) 
         def clas_score_label(clas_pred_y_df):
@@ -1054,7 +1056,7 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
         fig = px.bar(ts_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
             title="Model Comparison on R2 (floored at 0)")
         fig['layout']['yaxis']['autorange'] = "reversed"
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         # show tabel of model scores
         st.dataframe(ts_scores_df.style.set_precision(4))
@@ -1069,7 +1071,7 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
                 xaxis_title="Datetime Index", 
                 yaxis_title= (us_y_var + " and Prediction"),
                 title = 'Time Series and Prediction')
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         ts_res_y_df.set_index(test_ts_index, inplace=True)
         
@@ -1078,7 +1080,7 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
                     title="Histogramm of Residuals - " + use_ts_model).update_layout(
                     xaxis_title="residuals")
 
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
         # plot residuals and True Target Value
         ts_res_y_df['Datetime_index'] = ts_res_y_df.index # two y doesn't work on index appearently
@@ -1086,5 +1088,5 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
                     title="Residuals over Datetime - " + use_ts_model).update_layout(
                     xaxis_title="Datetime Index", yaxis_title="residuals")
 
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
 
