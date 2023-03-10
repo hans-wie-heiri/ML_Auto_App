@@ -1,0 +1,1 @@
+This is a little machine learning automation app in streamlit. The machine learning part ist mostly based on the scikit learn api.
