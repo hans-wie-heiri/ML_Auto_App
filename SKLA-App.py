@@ -198,6 +198,8 @@ st.write("NA-values will automatically be filled (numerical variables by their m
          alternatively all instances with NA-values can be droped.")
 st.write("")
 
+test_basis = ['size', 'date range']
+
 
 # --- Auto extract features from daytime
 
@@ -205,53 +207,80 @@ st.write("")
 if len(converted_date_var) > 0:
     # save the first var as index for time series analysis
     ts_index = df[converted_date_var[0]]
+    # extract features of all dates
     df = create_time_features(df, converted_date_var)
+    # user selected test basis
+    us_test_basis = st.radio('Do you want to base your test set on size or a date range?', test_basis, index=0)  
+    
+else:
+    us_test_basis = test_basis[0]
 
-
-# --- Split into Train and test
+# --- Split into train and test on testsize
 
 # info: it is important that splitting is done before preprocessing to avoid target leakage.
 
-# test size selection
-testsizes = {
-    '10%' : 0.10,
-    '20%' : 0.20,
-    '30%' : 0.30,
-    '40%' : 0.40,
-    '50%' : 0.50,
-}
+if us_test_basis == test_basis[0]:
+    # test size selection
+    testsizes = {
+        '10%' : 0.10,
+        '20%' : 0.20,
+        '30%' : 0.30,
+        '40%' : 0.40,
+        '50%' : 0.50,
+    }
 
-us_test_size_pct = st.radio('What % of data do you want to use as test size?', list(testsizes.keys()), index=1, horizontal = True)
-us_test_size = testsizes[us_test_size_pct]
+    us_test_size_pct = st.radio('What % of data do you want to use as test size?', list(testsizes.keys()), index=1, horizontal = True)
+    us_test_size = testsizes[us_test_size_pct]
 
-# split on testsize
-train_df, test_df = split_testsize(df, us_test_size)
+    # split on testsize
+    train_df, test_df = split_testsize(df, us_test_size)
 
-n_row, n_col = train_df.shape
-st.write("Training set: " , n_col, " features, ", n_row, " instances, ", train_df.size, " total elements")
-n_row, n_col = test_df.shape
-st.write("Test set: " , n_col, " features, ", n_row, " instances, ", test_df.size, " total elements")
+    # show split
+    n_row, n_col = train_df.shape
+    st.write("Training set: " , n_col, " features, ", n_row, " instances, ", train_df.size, " total elements")
+    n_row, n_col = test_df.shape
+    st.write("Test set: " , n_col, " features, ", n_row, " instances, ", test_df.size, " total elements")
 
-# # beginning prediction period
-# if len(converted_date_var) > 0:
-#     min_date = min(ts_index)
-#     b_min_date = min_date.to_pydatetime()
-#     max_date = max(ts_index)
-#     max_date = max_date.to_pydatetime()
-#     b_max_date = max_date - timedelta(days=1)
-#     days_20pct = ((max_date - min_date) *0.2).days
-#     defalut_beg_day = max_date - timedelta(days=days_20pct)
+# --- Splittrain and test on date
 
-#     us_start_date = st.date_input("Beginning of prediction period", value = defalut_beg_day, min_value = b_min_date, max_value=b_max_date)
+elif us_test_basis == test_basis[1]:
+
+    # Start prediction period
+    min_date = min(ts_index)
+    b_min_date = min_date.to_pydatetime()
+    max_date = max(ts_index)
+    max_date = max_date.to_pydatetime()
+    b_max_date = max_date - timedelta(days=1)
+    days_20pct = ((max_date - min_date) *0.2).days
+    defalut_beg_day = max_date - timedelta(days=days_20pct)
+    # user selection
+    us_start_date = st.date_input("Beginning of prediction period", value = defalut_beg_day, min_value = b_min_date, max_value=b_max_date)
     
-#     # end prediction period
-#     e_min_date = us_start_date + timedelta(days=1)
-#     e_max_date = max_date
+    # End prediction period
+    e_min_date = us_start_date + timedelta(days=1)
+    e_max_date = max_date
+    #user selection
+    us_end_date = st.date_input("End of prediction period", value = e_max_date, min_value = e_min_date, max_value=e_max_date)
 
-#     us_end_date = st.date_input("End of prediction period", value = e_max_date, min_value = e_min_date, max_value=e_max_date)
+    # Split 
+    df_ts = df.set_index(ts_index)
+    train_df, test_df = split_timeseries(df_ts, us_start_date, us_end_date)
+    
+    # Reset index and keep datetime index as col for later
+    name_index = train_df.index.name
+    new_name_datetimeindex = ("Index_"+name_index)
+    train_df = train_df.reset_index(drop=False).rename(columns={name_index:new_name_datetimeindex})
+    train_df[new_name_datetimeindex] = train_df[new_name_datetimeindex].astype(str)
+    test_df = test_df.reset_index(drop=False).rename(columns={name_index:new_name_datetimeindex})
+    test_df[new_name_datetimeindex] = test_df[new_name_datetimeindex].astype(str)
 
-#     train_df, test_df = split_timeseries(df_ts, start_date, end_date)
+    # show split
+    n_row, n_col = train_df.shape
+    st.write("Training set: " , n_col, " features, ", n_row, " instances, ", train_df.size, " total elements")
+    n_row, n_col = test_df.shape
+    st.write("Test set: " , n_col, " features, ", n_row, " instances, ", test_df.size, " total elements")
 
+    st.dataframe(train_df)
 
 # --- fill or drop NA
 
@@ -329,11 +358,16 @@ us_dummie_var = st.multiselect(
 if len(us_dummie_var) > 0:
     train_df, test_df = dummi_encoding(train_df, test_df, us_dummie_var)
 
+# --- set the daytime index if it has been chosen
+
+if us_test_basis == test_basis[1]:
+    train_df = train_df.set_index(new_name_datetimeindex, drop=True)
+    test_df = test_df.set_index(new_name_datetimeindex, drop=True)
 
 ## show data after preprocessing
 
 st.subheader("Training Dataframe After Preprocessing")
-st.dataframe(train_df.head().style.set_precision(2))
+st.dataframe(train_df.head(1000).style.set_precision(2))
 
 n_row, n_col = train_df.shape
 st.write("Training set: " , n_col, " features, ", n_row, " instances, ", train_df.size, " total elements")
@@ -475,15 +509,22 @@ if "y_var_user" not in st.session_state:
 if "x_var_user" not in st.session_state:
     st.session_state.x_var_user = us_x_var
 
+if us_test_basis == test_basis[1]:
+    d1 = us_start_date.strftime("%d/%m/%Y")
+    d2 = us_end_date.strftime("%d/%m/%Y")
+    test_size_identifier = (d1+d2)
+else:
+    test_size_identifier = us_test_size
+
 if "test_size_user" not in st.session_state:
-    st.session_state.test_size_user = us_test_size
+    st.session_state.test_size_user = test_size_identifier
 
 if "scaler_user" not in st.session_state:
     st.session_state.scaler_user = us_scaler_key
 
 check_y_no_change = st.session_state.y_var_user == us_y_var
 check_x_no_change = st.session_state.x_var_user == us_x_var
-check_test_size_no_change = st.session_state.test_size_user == us_test_size
+check_test_size_no_change = st.session_state.test_size_user == test_size_identifier
 check_scaler_no_change = st.session_state.scaler_user == us_scaler_key
 
 # check y for possible models
@@ -556,30 +597,6 @@ def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
     # return the 3 dataframes
     return reg_scores_df, reg_pred_y_df, reg_res_y_df
 
-# function for splitting (last 1 - test size percent of time series), that outputs arrays for time series
-@st.cache_data(ttl = time_to_live_cache) 
-def split_timeseries(X_df_ts, y_ser_ts, us_start_date, us_end_date, us_scaler_key): # us_test_size
-    train_size = (1-us_test_size)
-    
-    us_start_date = datetime.combine(us_start_date, datetime.min.time())
-    us_end_date = datetime.combine(us_end_date, datetime.min.time())
-
-    X_train_df_ts = X_df_ts.loc[X_df_ts.index < us_start_date]
-    X_test_df_ts = X_df_ts.loc[(X_df_ts.index >= us_start_date) & (X_df_ts.index <= us_end_date)]
-    y_train_df_ts = y_ser_ts.loc[y_ser_ts.index < us_start_date]
-    y_test_df_ts = y_ser_ts.loc[(y_ser_ts.index >= us_start_date) & (y_ser_ts.index <= us_end_date)]
-    
-    train_ts_index = y_train_df_ts.index
-    test_ts_index = y_test_df_ts.index
-
-    scaler = scalers[us_scaler_key]
-    X_train_ts = scaler.fit_transform(X_train_df_ts)
-    X_test_ts = scaler.transform(X_test_df_ts)
-
-    y_train_ts = y_train_df_ts.to_numpy()
-    y_test_ts = y_test_df_ts.to_numpy()
-    
-    return(X_train_ts, X_test_ts, y_train_ts, y_test_ts, train_ts_index, test_ts_index)
 
 
 if len(cat_cols_x) > 0:
@@ -623,7 +640,7 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
         st.session_state.start_reg_models_state = True
         st.session_state.y_var_user = us_y_var
         st.session_state.x_var_user = us_x_var
-        st.session_state.test_size_user = us_test_size
+        st.session_state.test_size_user = test_size_identifier
         st.session_state.scaler_user = us_scaler_key
         st.session_state.reg_model_selection = us_reg_models
 
@@ -721,7 +738,7 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
         st.session_state.start_clas_models_state = True
         st.session_state.y_var_user = us_y_var
         st.session_state.x_var_user = us_x_var
-        st.session_state.test_size_user = us_test_size
+        st.session_state.test_size_user = test_size_identifier
         st.session_state.scaler_user = us_scaler_key
         st.session_state.clas_model_selection = us_clas_models
 
@@ -845,124 +862,109 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
 
 #--- Time Series models
 
-# if len(converted_date_var) > 0 and len(cat_cols_x) == 0:
+if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == test_basis[1]:
 
-#     st.markdown("""---""")
-#     st.subheader("Regression Models on Time Series")
+    st.markdown("""---""")
+    st.subheader("Regression Models on Time Series")
 
-#     # dates for input
-
-    
-#     # time series regression model selection
-#     us_ts_models = st.multiselect('What regression models do you want to launch and compare for the time series?', regression_models.keys(), default= list(regression_models.keys()))
+    # dates for input
 
     
+    # time series regression model selection
+    us_ts_models = st.multiselect('What regression models do you want to launch and compare for the time series?', regression_models.keys(), default= list(regression_models.keys()))
 
-#     # check that at least one model has been selected otherwise don't show launch button
-#     if len(us_ts_models) > 0:
-#         start_ts_models = st.button("Start Time Series Analysis")
-#     elif len(us_ts_models) == 0:
-#         start_ts_models = False
-#         st.warning('Please select at least one model if you want to do a time series analysis.', icon="⚠️")
-
-
-#     # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
-#     # if user model selection changes, then we dont want an automatic model rerun below
-
-#     if "start_ts_models_state" not in st.session_state :
-#         st.session_state.start_ts_models_state = False
     
-#     if "ts_model_selection" not in st.session_state:
-#         st.session_state.ts_model_selection = us_ts_models
 
-#     if "ts_start_date" not in st.session_state:
-#         st.session_state.ts_start_date = us_start_date
+    # check that at least one model has been selected otherwise don't show launch button
+    if len(us_ts_models) > 0:
+        start_ts_models = st.button("Start Time Series Analysis")
+    elif len(us_ts_models) == 0:
+        start_ts_models = False
+        st.warning('Please select at least one model if you want to do a time series analysis.', icon="⚠️")
 
-#     if "ts_end_date" not in st.session_state:
-#         st.session_state.ts_end_date = us_end_date
 
-#     check_ts_models_no_change = st.session_state.ts_model_selection == us_ts_models
-#     check_ts_start_date_no_change = st.session_state.ts_start_date == us_start_date
-#     check_ts_end_date_no_change = st.session_state.ts_end_date == us_end_date
-      
+    # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
+    # if user model selection changes, then we dont want an automatic model rerun below
+
+    if "start_ts_models_state" not in st.session_state :
+        st.session_state.start_ts_models_state = False
+    
+    if "ts_model_selection" not in st.session_state:
+        st.session_state.ts_model_selection = us_ts_models
+
+    check_ts_models_no_change = st.session_state.ts_model_selection == us_ts_models    
         
-
-#     if (start_ts_models or (st.session_state.start_ts_models_state 
-#                             and check_y_no_change 
-#                             and check_x_no_change
-#                             and check_scaler_no_change
-#                             and check_ts_models_no_change
-#                             and check_ts_start_date_no_change
-#                             and check_ts_end_date_no_change)):
-#         st.session_state.start_ts_models_state = True
-#         st.session_state.y_var_user = us_y_var
-#         st.session_state.x_var_user = us_x_var
-#         st.session_state.test_size_user = us_test_size
-#         st.session_state.scaler_user = us_scaler_key
-#         st.session_state.ts_model_selection = us_ts_models
-#         st.session_state.ts_start_date = us_start_date
-#         st.session_state.ts_end_date = us_end_date
+    if (start_ts_models or (st.session_state.start_ts_models_state 
+                            and check_y_no_change 
+                            and check_x_no_change
+                            and check_scaler_no_change
+                            and check_ts_models_no_change
+                            and check_test_size_no_change)):
+        st.session_state.start_ts_models_state = True
+        st.session_state.y_var_user = us_y_var
+        st.session_state.x_var_user = us_x_var
+        st.session_state.test_size_user = test_size_identifier
+        st.session_state.scaler_user = us_scaler_key
+        st.session_state.ts_model_selection = us_ts_models
         
+       
+        # remove duplicates from index and sort
+        train_df = remove_duplicated_index(train_df)
+        train_df = train_df.sort_index()
+        test_df = remove_duplicated_index(test_df)
+        test_df = test_df.sort_index()
 
-#         # remove dupplicate function that keeps last version of index
-#         def remove_duplicated_index(df):
-#             all_dup = df.index.duplicated(keep=False) # all duplicates will be True rest False
-#             last_dup = df.index.duplicated(keep='last') # last duplicates will again be True rest False
-#             keep_last = all_dup == last_dup # lose duplicates that are not the last (first True then False = False) 
-#             df_no_dup = df[keep_last]
-#             return df_no_dup
+
+        y_ser_ts = df_ts[us_y_var]
+        X_df_ts = df_ts[us_x_var]
+
+        # run scaling
+        X_train, X_test, y_train, y_test = scaling_test_train(X_train_df, X_test_df, y_train_ser, y_test_ser, us_scaler_key)
+
+        # run models
+        ts_scores_df, ts_pred_y_df, ts_res_y_df = reg_models_comparison(X_train, X_test, y_train, y_test, us_ts_models)
+
+        # Titel
+        st.subheader("Results for Regression Models on Testset")
+
+        # plot model scores
+        fig = px.bar(ts_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
+            title="Model Comparison on R2 (floored at 0)")
+        fig['layout']['yaxis']['autorange'] = "reversed"
+        st.plotly_chart(fig, use_container_width=True)
+
+        # show tabel of model scores
+        st.dataframe(ts_scores_df.style.set_precision(4))
+
+        # user model result selection
+        use_ts_model = st.radio('show results for:', ts_scores_df.Model, key='use_ts_model')
+
+        # create a complete dataframe for plotting
+        ts_pred_y_df.set_index(test_df.index, inplace=True)
+        df_ts = pd.concat([train_df, test_df], axis = 0)
+        pred_df_ts = pd.concat([df_ts, ts_pred_y_df], axis = 1)
+
+        pred_df_ts[new_name_datetimeindex] = pred_df_ts.index # two y doesn't work on index appearently
+        fig = px.line(pred_df_ts, x=new_name_datetimeindex, y=[us_y_var, use_ts_model]).update_layout(
+                xaxis_title=new_name_datetimeindex, 
+                yaxis_title= (us_y_var + " and Prediction"),
+                title = 'Time Series and Prediction')
+        st.plotly_chart(fig, use_container_width=True)
+
+        ts_res_y_df.set_index(test_df.index, inplace=True)
         
-#         # create a time series dataframe wit datetime index without duplicates
-#         df_ts = df.set_index(ts_index)
-#         df_ts = remove_duplicated_index(df_ts)
-#         df_ts = df_ts.sort_index()
+        # plot histogramm of residuals
+        fig = px.histogram(ts_res_y_df, x = use_ts_model,
+                    title="Histogramm of Residuals - " + use_ts_model).update_layout(
+                    xaxis_title="residuals")
 
+        st.plotly_chart(fig, use_container_width=True)
 
-#         y_ser_ts = df_ts[us_y_var]
-#         X_df_ts = df_ts[us_x_var]
+        # plot residuals and True Target Value
+        ts_res_y_df[new_name_datetimeindex] = ts_res_y_df.index # two y doesn't work on index appearently
+        fig = px.bar(ts_res_y_df, x = new_name_datetimeindex, y = use_ts_model,
+                    title="Residuals over Datetime - " + use_ts_model).update_layout(
+                    xaxis_title=new_name_datetimeindex, yaxis_title="residuals")
 
-#         X_train_ts, X_test_ts, y_train_ts, y_test_ts, train_ts_index, test_ts_index = split_timeseries(X_df_ts, y_ser_ts, us_start_date, us_end_date, us_scaler_key)
-
-#         ts_scores_df, ts_pred_y_df, ts_res_y_df = reg_models_comparison(X_train_ts, X_test_ts, y_train_ts, y_test_ts, us_ts_models)
-
-#         # Titel
-#         st.subheader("Results for Regression Models on Testset")
-
-#         # plot model scores
-#         fig = px.bar(ts_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
-#             title="Model Comparison on R2 (floored at 0)")
-#         fig['layout']['yaxis']['autorange'] = "reversed"
-#         st.plotly_chart(fig, use_container_width=True)
-
-#         # show tabel of model scores
-#         st.dataframe(ts_scores_df.style.set_precision(4))
-
-#         use_ts_model = st.radio('show results for:', ts_scores_df.Model, key='use_ts_model')
-
-#         ts_pred_y_df.set_index(test_ts_index, inplace=True)
-#         pred_df_ts = pd.concat([df_ts, ts_pred_y_df], axis = 1)
-
-#         pred_df_ts['Datetime_index'] = pred_df_ts.index # two y doesn't work on index appearently
-#         fig = px.line(pred_df_ts, x='Datetime_index', y=[us_y_var, use_ts_model]).update_layout(
-#                 xaxis_title="Datetime Index", 
-#                 yaxis_title= (us_y_var + " and Prediction"),
-#                 title = 'Time Series and Prediction')
-#         st.plotly_chart(fig, use_container_width=True)
-
-#         ts_res_y_df.set_index(test_ts_index, inplace=True)
-        
-#         # plot histogramm of residuals
-#         fig = px.histogram(ts_res_y_df, x = use_ts_model,
-#                     title="Histogramm of Residuals - " + use_ts_model).update_layout(
-#                     xaxis_title="residuals")
-
-#         st.plotly_chart(fig, use_container_width=True)
-
-#         # plot residuals and True Target Value
-#         ts_res_y_df['Datetime_index'] = ts_res_y_df.index # two y doesn't work on index appearently
-#         fig = px.bar(ts_res_y_df, x = 'Datetime_index', y = use_ts_model,
-#                     title="Residuals over Datetime - " + use_ts_model).update_layout(
-#                     xaxis_title="Datetime Index", yaxis_title="residuals")
-
-#         st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 

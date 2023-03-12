@@ -70,6 +70,10 @@ def find_cat_cols(df):
     cat_cols = df.select_dtypes(include=['object', 'bool']).columns
     return cat_cols
 
+def find_date_cat_cols(df):
+    date_cat_cols = df.select_dtypes(include=['object', 'bool','datetime64']).columns
+    return date_cat_cols
+
 
 ## find candidates for date conversion
 
@@ -132,7 +136,7 @@ def split_testsize(df, testsize):
 # Splitting needs dataframe with datetime index
 
 @st.cache_data(ttl = time_to_live_cache) 
-def split_timeseries(df_ts, start_date, end_date): # us_test_size
+def split_timeseries(df_ts, us_start_date, us_end_date): # us_test_size
    
     us_start_date = datetime.combine(us_start_date, datetime.min.time())
     us_end_date = datetime.combine(us_end_date, datetime.min.time())
@@ -285,7 +289,7 @@ def dummi_encoding(train_df, test_df, us_dummie_var):
 
 # dataframe to csv converter
 
-@st.cache_data
+@st.cache_data(ttl = time_to_live_cache) 
 def convert_df_to_csv(df):
   # IMPORTANT: Cache the conversion to prevent computation on every rerun
   return df.to_csv().encode('utf-8')
@@ -310,3 +314,13 @@ def scaling_test_train(X_train_df, X_test_df, y_train_ser, y_test_ser, us_scaler
     y_test = y_test_ser.to_numpy()
     
     return(X_train, X_test, y_train, y_test)
+
+
+# remove dupplicate function that keeps last version of index for time series
+@st.cache_data(ttl = time_to_live_cache) 
+def remove_duplicated_index(df):
+    all_dup = df.index.duplicated(keep=False) # all duplicates will be True rest False
+    last_dup = df.index.duplicated(keep='last') # last duplicates will again be True rest False
+    keep_last = all_dup == last_dup # lose duplicates that are not the last (first True then False = False) 
+    df_no_dup = df[keep_last]
+    return df_no_dup
