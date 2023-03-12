@@ -102,6 +102,9 @@ st.dataframe(show_info(df))
 
 # --- Datetime conversion
 
+st.subheader('Datetime conversion')
+st.write('Time series anlysis will only be possible if at least one feature has been converted to a date format.')
+
 # find candidates for datetime conversion
 date_candid_cols = datetime_candidate_col(df)
 
@@ -191,15 +194,17 @@ if use_cor_matrix:
 
 st.markdown("""---""")
 
-# ------------- Data Preprocessinng --------------
+# ------------- Data Splitting and Preprocessinng --------------
 
-st.header('Data Preprocessing')
-st.write("NA-values will automatically be filled (numerical variables by their mean and categorical by their mode) \
-         alternatively all instances with NA-values can be droped.")
+st.header('Data Splitting and Preprocessing')
+st.write('The data is first split into a training and a testing set. To avoid data leakage by train-test contamination all further \
+         preprocessing steps will be executed separately in training (fit and transform) and testing (only transform).')
+
 st.write("")
 
-test_basis = ['size', 'date range']
+st.subheader('Splitting into Training and Testing set')
 
+test_basis = ['size', 'date range']
 
 # --- Auto extract features from daytime
 
@@ -210,7 +215,10 @@ if len(converted_date_var) > 0:
     # extract features of all dates
     df = create_time_features(df, converted_date_var)
     # user selected test basis
-    us_test_basis = st.radio('Do you want to base your test set on size or a date range?', test_basis, index=0)  
+    st.write('If you want to do a regression in form of a time series anlysis, you need to select "date range".\
+         The first feature you converted to date format will be used as index. Regardless of your selection\
+         for testing set splitting, all converted dates will undergo a feature extraction.')
+    us_test_basis = st.radio('Do you want to base your test set on size or a date range?', test_basis, index=0, horizontal=True)  
     
 else:
     us_test_basis = test_basis[0]
@@ -236,10 +244,11 @@ if us_test_basis == test_basis[0]:
     train_df, test_df = split_testsize(df, us_test_size)
 
     # show split
+    st.write('')
     n_row, n_col = train_df.shape
-    st.write("Training set: " , n_col, " features, ", n_row, " instances, ", train_df.size, " total elements")
+    st.write("Training set: " , n_row, " instances")
     n_row, n_col = test_df.shape
-    st.write("Test set: " , n_col, " features, ", n_row, " instances, ", test_df.size, " total elements")
+    st.write("Test set: " , n_row, " instances")
 
 # --- Splittrain and test on date
 
@@ -275,12 +284,19 @@ elif us_test_basis == test_basis[1]:
     test_df[new_name_datetimeindex] = test_df[new_name_datetimeindex].astype(str)
 
     # show split
+    st.write('')
     n_row, n_col = train_df.shape
-    st.write("Training set: " , n_col, " features, ", n_row, " instances, ", train_df.size, " total elements")
+    st.write("Training set: " , n_row, " instances")
     n_row, n_col = test_df.shape
-    st.write("Test set: " , n_col, " features, ", n_row, " instances, ", test_df.size, " total elements")
+    st.write("Test set: " , n_row, " instances")
 
-    st.dataframe(train_df)
+
+# --- Preprocessing
+
+st.write('')
+st.subheader('Data Preprocessing')
+st.write("NA-values will automatically be filled (numerical variables by their mean and categorical by their mode) \
+         alternatively all instances with NA-values can be droped.")
 
 # --- fill or drop NA
 
@@ -380,16 +396,16 @@ st.dataframe(show_info(train_df))
 
 
 st.subheader("Download the Preprocessed Training Data")
+
 st.download_button(
-  label="Download as CSV",
+  label="Download Training Data as CSV",
   data=convert_df_to_csv(train_df),
   file_name= (df_name + 'train_preprocessed.csv'),
   mime='text/csv',
 )
 
-st.subheader("Download the Preprocessed Testing Data")
 st.download_button(
-  label="Download as CSV",
+  label="Download Testing Data as CSV",
   data=convert_df_to_csv(test_df),
   file_name= (df_name + 'test_preprocessed.csv'),
   mime='text/csv',
