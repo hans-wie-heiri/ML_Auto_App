@@ -49,6 +49,9 @@ st.markdown(hide_st_style, unsafe_allow_html=True)
 
 # ------------- Get data in and show it --------------
 
+
+# --- Data upload
+
 st.header("Raw Data Selection and Visualization")
 st.write('')
 st.subheader("Choose the Data")
@@ -68,10 +71,6 @@ csv_name = [i for i in csv_options]
 
 use_csv_name = st.selectbox('**select dataset from list**', options= csv_name)
 uploaded_file = st.file_uploader("**or upload your own**")
-
-
-
-
 
 if uploaded_file is None:
     df = load_data(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
@@ -100,10 +99,11 @@ st.write(n_col, " features, ", n_row, " instances, ", df.size, " total elements"
 st.subheader("Column Info")
 st.dataframe(show_info(df))
 
+
+# --- Datetime conversion
+
 # find candidates for datetime conversion
-
 date_candid_cols = datetime_candidate_col(df)
-
 
 # change user selected date columns to datetime 
 cat_cols = find_cat_cols(df)
@@ -126,15 +126,14 @@ datetimeformats = {'automatic': None,
 if len(us_date_var) > 0:
     us_datetimeformats = st.selectbox('Choose a datetime format', list(datetimeformats.keys()))
 
-
-
 if len(us_date_var) > 0:
     df, converted_date_var = datetime_converter(df, us_date_var, datetimeformats, us_datetimeformats)
 else:
     converted_date_var = [] 
 
 
-# Plot features
+# --- Plot features
+
 st.subheader("Plot Selcted Features")
 
 plot_types = ['Scatter Plot', 'Histogramm', 'Line Plot', 'Box Plot', 'Heatmap of count']
@@ -228,6 +227,11 @@ us_test_size = testsizes[us_test_size_pct]
 # split on testsize
 train_df, test_df = split_testsize(df, us_test_size)
 
+n_row, n_col = train_df.shape
+st.write("Training set: " , n_col, " features, ", n_row, " instances, ", train_df.size, " total elements")
+n_row, n_col = test_df.shape
+st.write("Test set: " , n_col, " features, ", n_row, " instances, ", test_df.size, " total elements")
+
 # # beginning prediction period
 # if len(converted_date_var) > 0:
 #     min_date = min(ts_index)
@@ -248,8 +252,6 @@ train_df, test_df = split_testsize(df, us_test_size)
 
 #     train_df, test_df = split_timeseries(df_ts, start_date, end_date)
 
-st.dataframe(train_df)
-st.dataframe(test_df)
 
 # --- fill or drop NA
 
@@ -328,15 +330,19 @@ if len(us_dummie_var) > 0:
     train_df, test_df = dummi_encoding(train_df, test_df, us_dummie_var)
 
 
+## show data after preprocessing
+
 st.subheader("Training Dataframe After Preprocessing")
 st.dataframe(train_df.head().style.set_precision(2))
-st.subheader("Column Info")
-st.dataframe(show_info(train_df))
 
 n_row, n_col = train_df.shape
 st.write("Training set: " , n_col, " features, ", n_row, " instances, ", train_df.size, " total elements")
 n_row, n_col = test_df.shape
 st.write("Test set: " , n_col, " features, ", n_row, " instances, ", test_df.size, " total elements")
+
+st.subheader("Column Info")
+st.dataframe(show_info(train_df))
+
 
 
 st.subheader("Download the Preprocessed Training Data")
