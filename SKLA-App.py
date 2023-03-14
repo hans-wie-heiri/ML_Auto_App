@@ -496,7 +496,9 @@ st.markdown("""---""")
 st.header('Launch Model Training and Prediction')
 descr_model_launch = 'Regression models are only launchable if the chosen dependen variable is a number and \
 classification models in turn, only if it is of type bool, object or int. \
-Time Series analysis is only callable if at least one feature has been recoded as date.'
+Time Series analysis is only callable if at least one feature has been recoded as date. \
+Unless otherwise indicated, all models are run in the [scikit-learn](https://scikit-learn.org/stable/index.html) -default configuration. \
+Crosscalitaion, Gridsearch and manual hyper parameter tuning are (not yet) implemented.'
 
 st.write(descr_model_launch)
 st.write("")
@@ -567,7 +569,7 @@ def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
     progress_text = us_reg_models.copy()
     progress_text.append('complete')
     my_bar = st.progress(0, text=str(progress_text[0]))
-    increment_progress = int(round(100 / len(us_reg_models), 0))
+    increment_progress = int(math.ceil(100 / len(us_reg_models)))
     text_counter = 0
     percent_complete = 0
 
@@ -772,7 +774,7 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
             progress_text = us_clas_models.copy()
             progress_text.append('complete')
             my_bar = st.progress(0, text=str(progress_text[0]))
-            increment_progress = int(round(100 / len(us_clas_models), 0))
+            increment_progress = int(math.ceil(100 / len(us_clas_models)))
             text_counter = 0
             percent_complete = 0
            
