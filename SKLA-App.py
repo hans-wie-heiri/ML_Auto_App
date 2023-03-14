@@ -47,6 +47,23 @@ footer {visibility: hidden;}
 
 st.markdown(hide_st_style, unsafe_allow_html=True)
 
+# ------------- Plotly Configurations --------------
+
+config_plotly = {
+  'toImageButtonOptions': {
+    'format': 'svg', # one of png, svg, jpeg, webp
+    'filename': 'custom_image',
+    'height': 500,
+    'width': 700,
+    'scale': 1 # Multiply title/legend/axis/canvas sizes by this factor
+  },
+  'displaylogo': False,
+  'modeBarButtonsToRemove': ['lasso2d', 'select2d', 'autoScale2d'],
+  'modeBarButtonsToAdd':['drawopenpath', 'drawline', 'drawcircle', 'drawrect', 'eraseshape']
+}
+
+drawing_color_plotly = '#f72d4e'
+
 # ------------- Get data in and show it --------------
 
 
@@ -180,8 +197,9 @@ elif us_plot_type == 'Heatmap of count':
     heatmap_df.reset_index(inplace = True)
     heatmap_df = heatmap_df.pivot(index=us_y_axis, columns=us_x_axis)['count'].fillna(0)
     fig = px.imshow(heatmap_df, x=heatmap_df.columns, y=heatmap_df.index, title= 'Heatmap of Count for Selected Features', text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r)
-    
-st.plotly_chart(fig, use_container_width=True)
+
+fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
 st.write('Click button if you want to create a correlation matrix of the continuous variables:')
 use_cor_matrix = st.button("Correlation Matrix")
@@ -190,7 +208,8 @@ if use_cor_matrix:
     st.subheader("Correlation Matrix of Continuous Variables")
     corr_matrix = df.corr()
     fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r) # reverse color by adding "_r" (eg. Blues_r) 
-    st.plotly_chart(fig, use_container_width=True)
+    fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+    st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
 
 st.markdown("""---""")
@@ -404,6 +423,7 @@ st.download_button(
   data=convert_df_to_csv(train_df),
   file_name= (df_name + 'train_preprocessed.csv'),
   mime='text/csv',
+  key='ptrd'
 )
 
 st.download_button(
@@ -411,6 +431,7 @@ st.download_button(
   data=convert_df_to_csv(test_df),
   file_name= (df_name + 'test_preprocessed.csv'),
   mime='text/csv',
+  key='pted'
 )
 
 st.markdown("""---""")
@@ -751,11 +772,24 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
         fig = px.bar(reg_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
             title="Model Comparison on R2 (floored at 0)")
         fig['layout']['yaxis']['autorange'] = "reversed"
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
         # show tabel of model scores
         st.dataframe(reg_scores_df.style.set_precision(4))
+        
 
+        # download tabel of model scores
+        st.download_button(
+        label="Download Model Comparison as CSV",
+        data=convert_df_to_csv(reg_scores_df),
+        file_name= (df_name + '_model_comparison.csv'),
+        mime='text/csv',
+        key='regmodcomp'
+        )
+
+        st.write('')
+        st.subheader('Plot Predictions')
 
         use_reg_model = st.radio('show results for:', reg_scores_df.Model, key='use_reg_model') 
 
@@ -764,22 +798,33 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
                     title= 'Model Prediction vs True Target Value - ' + use_reg_model).update_layout(
                     xaxis_title="Model Prediction", yaxis_title="True Target Value")
         fig = fig.add_traces(px.line(reg_pred_y_df, x='y_test', y='y_test', color_discrete_sequence=["yellow"]).data)
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
         # plot histogramm of residuals
         fig = px.histogram(reg_res_y_df, x = use_reg_model,
                     title="Histogramm of Residuals - " + use_reg_model).update_layout(
                     xaxis_title="Residuals")
 
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
         # plot residuals and True Target Value
         fig = px.scatter(reg_res_y_df, x = 'y_test', y = use_reg_model,
                     title="Residuals and True Target Value - " + use_reg_model).update_layout(
                     xaxis_title="True Target Value", yaxis_title="Residuals")
 
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
+        # download model prediction and true value
+        st.download_button(
+        label="Download Model Predictions and True Value as CSV",
+        data=convert_df_to_csv(reg_pred_y_df),
+        file_name= (df_name + '_model_prediction.csv'),
+        mime='text/csv',
+        key='regmodpred'
+        )
 
 
 #--- Classification models
@@ -839,9 +884,22 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
         
         fig = px.bar(clas_scores_df, x = 'Accuracy', y = 'Model', orientation = 'h', color = 'Accuracy')
         fig['layout']['yaxis']['autorange'] = "reversed"
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
         st.dataframe(clas_scores_df.style.set_precision(4))
+
+        # download tabel of model scores
+        st.download_button(
+        label="Download Model Comparison as CSV",
+        data=convert_df_to_csv(clas_scores_df),
+        file_name= (df_name + '_model_comparison.csv'),
+        mime='text/csv',
+        key='clasmodcomp'
+        )
+
+        st.write('')
+        st.subheader('Plot Predictions')
 
         us_clas_model_result = st.radio('show results for:', clas_scores_df.Model, key='us_clas_model_result')
 
@@ -852,15 +910,27 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
         fig = px.imshow(conf_matrix_df, x=conf_matrix_df.columns, y=conf_matrix_df.index, title= 'Confusionmatrix - ' + us_clas_model_result
                         , text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r).update_layout(
                         xaxis_title="predicted label", yaxis_title="true label")
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
         fig = px.histogram(clas_pred_y_df, x = 'y_test', title = 'Histogram of True Values -' + us_clas_model_result).update_layout(
         xaxis_title="True Values")
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
         fig = px.histogram(clas_pred_y_df, x = us_clas_model_result, title = 'Histogram of Predicted Values - ' + us_clas_model_result).update_layout(
         xaxis_title="Predicted Values")
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
+
+        # download model prediction and true value
+        st.download_button(
+        label="Download Model Predictions and True Value as CSV",
+        data=convert_df_to_csv(clas_pred_y_df),
+        file_name= (df_name + '_model_prediction.csv'),
+        mime='text/csv',
+        key='clasmodpred'
+        )
 
         @st.cache_data(ttl = time_to_live_cache) 
         def clas_score_label(clas_pred_y_df):
@@ -885,6 +955,18 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
 
         st.markdown('**Scores per Category**')
         st.dataframe(score_label_df)
+
+        # download model prediction and true value
+        st.download_button(
+        label="Download Scores Per Category as CSV",
+        data=convert_df_to_csv(score_label_df),
+        file_name= (df_name + '_scores_category.csv'),
+        mime='text/csv',
+        key='classcorescateg'
+        )
+
+
+
 
 
 #--- Time Series models
@@ -953,10 +1035,23 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
         fig = px.bar(ts_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
             title="Model Comparison on R2 (floored at 0)")
         fig['layout']['yaxis']['autorange'] = "reversed"
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
         # show tabel of model scores
         st.dataframe(ts_scores_df.style.set_precision(4))
+
+        # download tabel of model scores
+        st.download_button(
+        label="Download Model Comparison as CSV",
+        data=convert_df_to_csv(ts_scores_df),
+        file_name= (df_name + '_model_comparison.csv'),
+        mime='text/csv',
+        key='tsmodcomp'
+        )
+
+        st.write('')
+        st.subheader('Plot Predictions')
 
         # user model result selection
         use_ts_model = st.radio('show results for:', ts_scores_df.Model, key='use_ts_model')
@@ -971,7 +1066,8 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
                 xaxis_title=new_name_datetimeindex, 
                 yaxis_title= (us_y_var + " and Prediction"),
                 title = 'Time Series and Prediction')
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
         ts_res_y_df.set_index(test_df.index, inplace=True)
         
@@ -980,7 +1076,8 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
                     title="Histogramm of Residuals - " + use_ts_model).update_layout(
                     xaxis_title="residuals")
 
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
         # plot residuals and True Target Value
         ts_res_y_df[new_name_datetimeindex] = ts_res_y_df.index # two y doesn't work on index appearently
@@ -988,5 +1085,15 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
                     title="Residuals over Datetime - " + use_ts_model).update_layout(
                     xaxis_title=new_name_datetimeindex, yaxis_title="residuals")
 
-        st.plotly_chart(fig, use_container_width=True)
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
+
+        # download model prediction and true value
+        st.download_button(
+        label="Download Model Predictions and True Value as CSV",
+        data=convert_df_to_csv(ts_res_y_df),
+        file_name= (df_name + '_model_prediction.csv'),
+        mime='text/csv',
+        key='tsmodpred'
+        )
 
