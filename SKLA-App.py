@@ -185,7 +185,8 @@ if us_plot_type not in ['Histogramm','Heatmap of count']:
     color_options = axis_options.copy()
     color_options.append(None)
     color_options.remove(us_x_axis)
-    color_options.remove(us_y_axis)
+    if us_x_axis != us_y_axis:
+        color_options.remove(us_y_axis)
     us_color_group = st.selectbox('select color grouping', color_options, index = (len(color_options)-1))
 
 if agg_values == 'yes':
