@@ -172,7 +172,7 @@ aggfun_options = {
 if us_plot_type != 'Histogramm':
     us_y_axis = st.selectbox('select y-axis', axis_options, index = (len(axis_options)-1))
 
-if us_plot_type not in ['Histogramm','Heatmap of count', 'Box Plot'] and us_y_axis in find_num_cols(df):
+if us_plot_type not in ['Histogramm','Heatmap of count', 'Box Plot'] and us_y_axis in find_num_cols(df) and us_y_axis != us_x_axis:
     us_y_axis_agg = st.selectbox('select y-axis aggregation', aggfun_options.keys(), index = 1)
     if us_y_axis_agg != 'None':
         agg_values = 'yes'
