@@ -17,9 +17,9 @@ from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_absolute_error, classification_report,accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, ConfusionMatrixDisplay
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor, HistGradientBoostingRegressor, RandomForestClassifier
-from sklearn.linear_model import LinearRegression, LogisticRegression, Perceptron
+from sklearn.linear_model import LinearRegression, LogisticRegression, Perceptron, Ridge
 from sklearn.dummy import DummyRegressor, DummyClassifier
-from sklearn.svm import SVR, SVC, LinearSVR
+from sklearn.svm import SVR, SVC, LinearSVR, LinearSVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.decomposition import PCA
@@ -113,7 +113,7 @@ def datetime_converter(df, us_date_var, datetimeformats, us_datetimeformats):
                     st.warning(df[i].name + ' could not be converted to date format', icon="⚠️")
     return df, converted_date_var
 
-# ------------- Data Preprocessinng --------------
+# ------------- Data Splitting and Preprocessinng --------------
 
 
 ## Split train test on test_size

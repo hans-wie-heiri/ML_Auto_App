@@ -553,8 +553,11 @@ cat_cols_x = find_cat_cols(X_train_df)
 
 regression_models = {'RandomForestRegressor': RandomForestRegressor(),
           'LinearRegression': LinearRegression(),
+          'Ridge' : Ridge(),
+          'LinearSVR' : LinearSVR(),
+          'SVR' : SVR(),
           'GradientBoostingRegressor': GradientBoostingRegressor(),
-          'HistGradientBoostingRegressor': HistGradientBoostingRegressor(),
+          # 'HistGradientBoostingRegressor': HistGradientBoostingRegressor(), # it is extremely slow on streamlit hosted server
           'DummyRegressor': DummyRegressor()}
 
 @st.cache_data(ttl = time_to_live_cache) 
@@ -711,8 +714,9 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
 if us_y_var in clas_cols and len(cat_cols_x) == 0:
 
     classifier_models = {'RandomForestClassifier': RandomForestClassifier(),
-                        'LogisticRegression': LogisticRegression(solver='sag'), #https://scikit-learn.org/stable/modules/linear_model.html#solvers
+                        'LogisticRegression(solver="sag")': LogisticRegression(solver='sag'), #https://scikit-learn.org/stable/modules/linear_model.html#solvers
                         'SVC': SVC(),
+                        'LinearSVC': LinearSVC(),
                         'DummyClassifier': DummyClassifier(),
                         'KNeighborsClassifier': KNeighborsClassifier(),
                         'Perceptron': Perceptron()
