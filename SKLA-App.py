@@ -157,38 +157,88 @@ else:
 
 st.subheader("Plot Selcted Features")
 
-plot_types = ['Scatter Plot', 'Histogramm', 'Line Plot', 'Box Plot', 'Heatmap of count']
+plot_types = ['Scatter Plot', 'Histogramm', 'Line Plot', 'Bar Plot', 'Box Plot', 'Heatmap of count']
 axis_options = list(df.columns)
 us_plot_type = st.selectbox('select plot type', plot_types)
 us_x_axis = st.selectbox('select x-axis', axis_options)
+aggfun_options = {
+    'None': '',
+    'Sum': np.sum, 
+    'Min': np.min,
+    'Max': np.max,
+    'Mean': np.mean, 
+    'Median': np.median}
+
 if us_plot_type != 'Histogramm':
     us_y_axis = st.selectbox('select y-axis', axis_options, index = (len(axis_options)-1))
+
+if us_plot_type not in ['Histogramm','Heatmap of count', 'Box Plot'] and us_y_axis in find_num_cols(df):
+    us_y_axis_agg = st.selectbox('select y-axis aggregation', aggfun_options.keys(), index = 1)
+    if us_y_axis_agg != 'None':
+        agg_values = 'yes'
+    else:
+        agg_values = 'no'
+else:
+    agg_values = 'no'
 
 if us_plot_type not in ['Histogramm','Heatmap of count']:
     color_options = axis_options.copy()
     color_options.append(None)
+    color_options.remove(us_x_axis)
+    color_options.remove(us_y_axis)
     us_color_group = st.selectbox('select color grouping', color_options, index = (len(color_options)-1))
 
-# plot user selected features
+if agg_values == 'yes':
+    pivot_df = np.round(pd.pivot_table(df, values=us_y_axis, 
+                                    index=[us_x_axis], 
+                                    columns=us_color_group, 
+                                    aggfunc=aggfun_options[us_y_axis_agg],
+                                    fill_value=0),2)
+
+
+# titel creation
+
+if agg_values == 'yes':
+    title_name = us_plot_type + ' - ' + us_x_axis + ' and ' + us_y_axis_agg + ' of '+ us_y_axis
+elif us_plot_type != 'Histogramm': 
+    title_name = us_plot_type + ' - ' + us_x_axis + ' and ' +  us_y_axis
+else:
+    title_name = us_plot_type + ' - ' + us_x_axis
+
+ # plot user selected features   
 
 if us_plot_type == 'Scatter Plot':
-    fig = px.scatter(df, x = us_x_axis, y = us_y_axis, color = us_color_group, color_continuous_scale=px.colors.sequential.Blues_r,
-                title= 'Scatter Plot of Selected Features').update_layout(
-                xaxis_title= us_x_axis, yaxis_title= us_y_axis).update_xaxes(
-                categoryorder='category ascending')
+    if agg_values == 'yes':
+        fig = px.scatter(pivot_df, title= title_name)
+    else:
+        fig = px.scatter(df, x = us_x_axis, y = us_y_axis, color = us_color_group, color_continuous_scale=px.colors.sequential.Blues_r,
+                    title= title_name)
+    fig.update_layout(xaxis_title= us_x_axis, yaxis_title= us_y_axis).update_xaxes(
+                    categoryorder='category ascending')
 elif us_plot_type == 'Histogramm':
     fig = px.histogram(df, x = us_x_axis, 
-                title= 'Histogramm Plot of Selected Features').update_layout(
+                title= title_name).update_layout(
                 xaxis_title= us_x_axis, yaxis_title= 'count').update_xaxes(
                 categoryorder='category ascending')
 elif us_plot_type == 'Line Plot':
-    fig = px.line(df, x = us_x_axis, y = us_y_axis, color = us_color_group,
-                title= 'Line Plot of Selected Features').update_layout(
-                xaxis_title= us_x_axis, yaxis_title= us_y_axis).update_xaxes(
-                categoryorder='category ascending')
+    if agg_values == 'yes':
+        fig = px.line(pivot_df, title= title_name)
+    else:
+        fig = px.line(df, x = us_x_axis, y = us_y_axis, color = us_color_group,
+                    title= title_name)
+    fig.update_layout(xaxis_title= us_x_axis, yaxis_title= us_y_axis).update_xaxes(
+                    categoryorder='category ascending')
+elif us_plot_type == 'Bar Plot':
+    if agg_values == 'yes':
+        fig = px.bar(pivot_df, title= title_name)
+    else:
+        fig = px.bar(df, x = us_x_axis, y = us_y_axis, color = us_color_group,
+                    title= title_name)
+    fig.update_layout(xaxis_title= us_x_axis, yaxis_title= us_y_axis).update_xaxes(
+                    categoryorder='category ascending')
 elif us_plot_type == 'Box Plot':
     fig = px.box(df, x = us_x_axis, y = us_y_axis, color = us_color_group,
-                title= 'Box Plot of Selected Features').update_layout(
+                title= title_name).update_layout(
                 xaxis_title= us_x_axis, yaxis_title= us_y_axis).update_xaxes(
                 categoryorder='category ascending')
 elif us_plot_type == 'Heatmap of count':
@@ -196,7 +246,8 @@ elif us_plot_type == 'Heatmap of count':
     heatmap_df.rename(columns={us_x_axis: "count"}, inplace=True)
     heatmap_df.reset_index(inplace = True)
     heatmap_df = heatmap_df.pivot(index=us_y_axis, columns=us_x_axis)['count'].fillna(0)
-    fig = px.imshow(heatmap_df, x=heatmap_df.columns, y=heatmap_df.index, title= 'Heatmap of Count for Selected Features', text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r)
+    fig = px.imshow(heatmap_df, x=heatmap_df.columns, y=heatmap_df.index, title= title_name, text_auto=True, 
+                    color_continuous_scale=px.colors.sequential.Blues_r)
 
 fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
 st.plotly_chart(fig, use_container_width=True, config = config_plotly)
