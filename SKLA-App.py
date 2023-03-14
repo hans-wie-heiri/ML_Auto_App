@@ -92,7 +92,8 @@ if uploaded_file is not None:
 
 ## head the data
 st.subheader("First 1'000 Entries of the Dataframe - " + df_name)
-st.dataframe(df.head(1000).style.set_precision(2))
+st.dataframe(df.head(1000))
+#st.dataframe(df.head(1000).style.set_precision(2))
 n_row, n_col = df.shape
 st.write(n_col, " features, ", n_row, " instances, ", df.size, " total elements")
 
@@ -383,7 +384,8 @@ if us_test_basis == test_basis[1]:
 ## show data after preprocessing
 
 st.subheader("Training Dataframe After Preprocessing")
-st.dataframe(train_df.head(1000).style.set_precision(2))
+st.dataframe(train_df.head(1000))
+# st.dataframe(train_df.head(1000).style.set_precision(2))
 
 n_row, n_col = train_df.shape
 st.write("Training set: " , n_col, " features, ", n_row, " instances, ", train_df.size, " total elements")
@@ -487,7 +489,8 @@ fig = px.histogram(train_df, x= us_y_var )
 col2.plotly_chart(fig, use_container_width=True)
 
 st.write('Chosen features:')
-st.dataframe(X_train_df.head(1000).style.set_precision(2))
+st.dataframe(X_train_df.head(1000))
+#st.dataframe(X_train_df.head(1000).style.set_precision(2))
 n_row, n_col = X_train_df.shape
 st.write(n_col, " features, ", n_row, " instances, ", X_train_df.size, " total elements")
 
@@ -619,6 +622,76 @@ def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
     return reg_scores_df, reg_pred_y_df, reg_res_y_df
 
 
+classifier_models = {'RandomForestClassifier': RandomForestClassifier(),
+                        'LogisticRegression(solver="sag")': LogisticRegression(solver='sag'), #https://scikit-learn.org/stable/modules/linear_model.html#solvers
+                        'SVC': SVC(),
+                        'LinearSVC': LinearSVC(),
+                        'DummyClassifier': DummyClassifier(),
+                        'KNeighborsClassifier': KNeighborsClassifier(),
+                        'Perceptron': Perceptron()
+                        }
+
+# function for running and comparing classification models
+
+@st.cache_data(ttl = time_to_live_cache) 
+def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
+    
+    # progress bar
+    progress_text = us_clas_models.copy()
+    progress_text.append('complete')
+    my_bar = st.progress(0, text=str(progress_text[0]))
+    increment_progress = int(math.ceil(100 / len(us_clas_models)))
+    text_counter = 0
+    percent_complete = 0
+    
+    # init values to be stored
+    modelnames = []
+    accuracy_scores = []
+    w_precision_scores = []
+    w_recall_scores = []
+    w_f1_scores = []
+    predictions = {}
+    class_labels = {}
+
+    
+    # loop through models
+    for i in us_clas_models:
+        m_clas = classifier_models[i]
+        m_clas.fit(X_train, y_train)
+
+        y_test_predict = m_clas.predict(X_test)
+        accuracy = accuracy_score(y_test, y_test_predict)
+        precision = precision_score(y_test, y_test_predict, average='weighted')
+        recall = recall_score(y_test, y_test_predict, average='weighted')
+        f1 = f1_score(y_test, y_test_predict, average='weighted')
+
+        modelnames.append(i)
+        accuracy_scores.append(round(accuracy, 4))
+        w_precision_scores.append(round(precision, 4))
+        w_recall_scores.append(round(recall, 4))
+        w_f1_scores.append(round(f1, 4))
+        predictions[i] = y_test_predict
+        class_labels[i] = list(m_clas.classes_)
+
+        text_counter += 1
+        percent_complete += increment_progress
+        percent_complete = min(100, percent_complete)
+        my_bar.progress(percent_complete, text=str(progress_text[text_counter]))
+        
+    # create score dataframe
+    clas_scores_df = pd.DataFrame({'Model': modelnames, 'Accuracy': accuracy_scores, 'Precision': w_precision_scores, 'Recall': w_recall_scores, 'F1': w_f1_scores})
+    clas_scores_df = clas_scores_df.sort_values(by='Accuracy', ascending = False).reset_index().drop(columns=['index'])
+
+    # create prediction dataframe
+    clas_pred_y_df = pd.DataFrame(predictions)
+    clas_pred_y_df['y_test'] = pd.Series(y_test)
+    
+    # create class dataframe
+    clas_label_df = pd.DataFrame(class_labels)
+    
+    # return the 3 dataframes
+    return clas_scores_df, clas_pred_y_df, clas_label_df
+
 
 if len(cat_cols_x) > 0:
     st.warning('Models can not be launched with categroical independent variables '+str(list(cat_cols_x))+'. Please recode as dummies or exclude.', icon="⚠️")
@@ -715,15 +788,6 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
 
 if us_y_var in clas_cols and len(cat_cols_x) == 0:
 
-    classifier_models = {'RandomForestClassifier': RandomForestClassifier(),
-                        'LogisticRegression(solver="sag")': LogisticRegression(solver='sag'), #https://scikit-learn.org/stable/modules/linear_model.html#solvers
-                        'SVC': SVC(),
-                        'LinearSVC': LinearSVC(),
-                        'DummyClassifier': DummyClassifier(),
-                        'KNeighborsClassifier': KNeighborsClassifier(),
-                        'Perceptron': Perceptron()
-                        }
-
     st.markdown("""---""")
 
     
@@ -767,66 +831,7 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0:
         # run scaling
         X_train, X_test, y_train, y_test = scaling_test_train(X_train_df, X_test_df, y_train_ser, y_test_ser, us_scaler_key)
 
-        @st.cache_data(ttl = time_to_live_cache) 
-        def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
-            
-            # progress bar
-            progress_text = us_clas_models.copy()
-            progress_text.append('complete')
-            my_bar = st.progress(0, text=str(progress_text[0]))
-            increment_progress = int(math.ceil(100 / len(us_clas_models)))
-            text_counter = 0
-            percent_complete = 0
-           
-            # init values to be stored
-            modelnames = []
-            accuracy_scores = []
-            w_precision_scores = []
-            w_recall_scores = []
-            w_f1_scores = []
-            predictions = {}
-            class_labels = {}
-
-            
-            # loop through models
-            for i in us_clas_models:
-                m_clas = classifier_models[i]
-                m_clas.fit(X_train, y_train)
-
-                y_test_predict = m_clas.predict(X_test)
-                accuracy = accuracy_score(y_test, y_test_predict)
-                precision = precision_score(y_test, y_test_predict, average='weighted')
-                recall = recall_score(y_test, y_test_predict, average='weighted')
-                f1 = f1_score(y_test, y_test_predict, average='weighted')
-
-                modelnames.append(i)
-                accuracy_scores.append(round(accuracy, 4))
-                w_precision_scores.append(round(precision, 4))
-                w_recall_scores.append(round(recall, 4))
-                w_f1_scores.append(round(f1, 4))
-                predictions[i] = y_test_predict
-                class_labels[i] = list(m_clas.classes_)
-
-                text_counter += 1
-                percent_complete += increment_progress
-                percent_complete = min(100, percent_complete)
-                my_bar.progress(percent_complete, text=str(progress_text[text_counter]))
-                
-            # create score dataframe
-            clas_scores_df = pd.DataFrame({'Model': modelnames, 'Accuracy': accuracy_scores, 'Precision': w_precision_scores, 'Recall': w_recall_scores, 'F1': w_f1_scores})
-            clas_scores_df = clas_scores_df.sort_values(by='Accuracy', ascending = False).reset_index().drop(columns=['index'])
-
-            # create prediction dataframe
-            clas_pred_y_df = pd.DataFrame(predictions)
-            clas_pred_y_df['y_test'] = pd.Series(y_test)
-            
-            # create class dataframe
-            clas_label_df = pd.DataFrame(class_labels)
-            
-            
-            # return the 3 dataframes
-            return clas_scores_df, clas_pred_y_df, clas_label_df
-
+        # run classification models
         clas_scores_df, clas_pred_y_df, clas_label_df = class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models)
 
         # Titel
@@ -888,14 +893,9 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
 
     st.markdown("""---""")
     st.subheader("Regression Models on Time Series")
-
-    # dates for input
-
-    
+ 
     # time series regression model selection
     us_ts_models = st.multiselect('What regression models do you want to launch and compare for the time series?', regression_models.keys(), default= list(regression_models.keys()))
-
-    
 
     # check that at least one model has been selected otherwise don't show launch button
     if len(us_ts_models) > 0:

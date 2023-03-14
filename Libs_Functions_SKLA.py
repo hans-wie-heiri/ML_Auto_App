@@ -43,7 +43,7 @@ def load_data(url, sep):
 
 
 ## show col info
-
+@st.cache_data(ttl = time_to_live_cache) 
 def show_info(df):
     colnames = []
     is_na = []
@@ -62,15 +62,17 @@ def show_info(df):
 
 
 ## numerical and categorical columns
-
+@st.cache_data(ttl = time_to_live_cache) 
 def find_num_cols(df):
     num_cols = df.select_dtypes(include=np.number).columns
     return num_cols
 
+@st.cache_data(ttl = time_to_live_cache) 
 def find_cat_cols(df):
     cat_cols = df.select_dtypes(include=['object', 'bool']).columns
     return cat_cols
 
+@st.cache_data(ttl = time_to_live_cache) 
 def find_date_cat_cols(df):
     date_cat_cols = df.select_dtypes(include=['object', 'bool','datetime64']).columns
     return date_cat_cols
@@ -78,6 +80,7 @@ def find_date_cat_cols(df):
 
 ## find candidates for date conversion
 
+@st.cache_data(ttl = time_to_live_cache) 
 def datetime_candidate_col(df):
     df_datetime_candid = df.copy()
     for col in df_datetime_candid.columns:
@@ -93,6 +96,7 @@ def datetime_candidate_col(df):
 
 ## convert chosen var to datetime
 
+@st.cache_data(ttl = time_to_live_cache) 
 def datetime_converter(df, us_date_var, datetimeformats, us_datetimeformats):
     converted_date_var = []
     for i in us_date_var:
@@ -154,7 +158,7 @@ def split_timeseries(df_ts, us_start_date, us_end_date): # us_test_size
 
 ## Fill NA
 
-@st.cache_data
+@st.cache_data(ttl = time_to_live_cache) 
 def fill_na_mean_mode(df):
 
     num_cols = find_num_cols(df)
@@ -175,7 +179,7 @@ def fill_na_mean_mode(df):
 
 ## Fill NA Simple imputer
 
-@st.cache_data
+@st.cache_data(ttl = time_to_live_cache) 
 def fill_na_si_mean_mode(train_df, test_df):
 
     train_num_cols = train_df[find_num_cols(train_df)]
@@ -213,7 +217,7 @@ def fill_na_si_mean_mode(train_df, test_df):
 
 ## PCA on train and test 
 
-@st.cache_data
+@st.cache_data(ttl = time_to_live_cache) 
 def pca_on_us_col(train_df, test_df, us_pca_var):
     # columns subset
     pca_train_df = train_df[us_pca_var]
@@ -243,7 +247,7 @@ def pca_on_us_col(train_df, test_df, us_pca_var):
 
 ## extract features from date columns
 
-@st.cache_data
+@st.cache_data(ttl = time_to_live_cache) 
 def create_time_features(df, converted_date_var):
         df = df.copy()
         for i in converted_date_var:
@@ -261,7 +265,7 @@ def create_time_features(df, converted_date_var):
 
 ## check number of unique values befor dummi coding
 
-@st.cache_data
+@st.cache_data(ttl = time_to_live_cache) 
 def col_with_n_uniques(df, col_list, n):
     alotofuniques = []
     for i in col_list:
@@ -272,7 +276,7 @@ def col_with_n_uniques(df, col_list, n):
 
 ## dummi encoding
 
-@st.cache_data
+@st.cache_data(ttl = time_to_live_cache) 
 def dummi_encoding(train_df, test_df, us_dummie_var):
     # create dummies for cat variables
     enc = OneHotEncoder(handle_unknown='ignore', sparse_output=False).set_output(transform="pandas")
