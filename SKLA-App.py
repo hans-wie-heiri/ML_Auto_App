@@ -2,10 +2,9 @@
 # - crashproove
 # - add clustering ?
 # - st.experimental_data_editor make dataframe editable ?
-# - select time space for time series testing ?
 # - export model ?
 # - predict new data?
-# - feature importance ?
+# - feature importance - maybe just use random forrest for that?
 # - add xg boost ?
 
 # ------------- Libraries & Project Specific Functions --------------
@@ -159,8 +158,6 @@ st.subheader("Plot Selcted Features")
 
 plot_types = ['Scatter Plot', 'Histogramm', 'Line Plot', 'Bar Plot', 'Box Plot', 'Heatmap of count']
 axis_options = list(df.columns)
-us_plot_type = st.selectbox('select plot type', plot_types)
-us_x_axis = st.selectbox('select x-axis', axis_options)
 aggfun_options = {
     'None': '',
     'Sum': np.sum, 
@@ -169,11 +166,22 @@ aggfun_options = {
     'Mean': np.mean, 
     'Median': np.median}
 
+
+us_plot_type = st.selectbox('select plot type', plot_types)
+
+col1_plot, col2_plot = st.columns(2)
+
+with col1_plot:
+    us_x_axis = st.selectbox('select x-axis', axis_options)
+
+
 if us_plot_type != 'Histogramm':
-    us_y_axis = st.selectbox('select y-axis', axis_options, index = (len(axis_options)-1))
+    with col2_plot:
+        us_y_axis = st.selectbox('select y-axis', axis_options, index = (len(axis_options)-1))
 
 if us_plot_type not in ['Histogramm','Heatmap of count', 'Box Plot'] and us_y_axis in find_num_cols(df) and us_y_axis != us_x_axis:
-    us_y_axis_agg = st.selectbox('select y-axis aggregation', aggfun_options.keys(), index = 1)
+    with col2_plot:
+        us_y_axis_agg = st.selectbox('select y-axis aggregation', aggfun_options.keys(), index = 1)
     if us_y_axis_agg != 'None':
         agg_values = 'yes'
     else:
@@ -187,7 +195,8 @@ if us_plot_type not in ['Histogramm','Heatmap of count']:
     color_options.remove(us_x_axis)
     if us_x_axis != us_y_axis:
         color_options.remove(us_y_axis)
-    us_color_group = st.selectbox('select color grouping', color_options, index = (len(color_options)-1))
+    with col1_plot:
+        us_color_group = st.selectbox('select color grouping', color_options, index = (len(color_options)-1))
 
 if agg_values == 'yes':
     pivot_df = np.round(pd.pivot_table(df, values=us_y_axis, 
@@ -570,7 +579,7 @@ st.write(n_col, " features, ", n_row, " instances, ", X_train_df.size, " total e
 st.markdown("""---""")
 
 st.header('Launch Model Training and Prediction')
-descr_model_launch = 'Regression models are only launchable if the chosen dependen variable is a number and \
+descr_model_launch = 'Regression models are only launchable if the chosen target variable is a number and \
 classification models in turn, only if it is of type bool, object or int. \
 Time Series analysis is only callable if at least one feature has been recoded as date. \
 Unless otherwise indicated, all models are run in the [scikit-learn](https://scikit-learn.org/stable/index.html) -default configuration. \
@@ -629,14 +638,16 @@ cat_cols_x = find_cat_cols(X_train_df)
 
 # function for running and comparing regression models
 
-regression_models = {'RandomForestRegressor': RandomForestRegressor(),
+regression_models = {
           'LinearRegression': LinearRegression(),
           'Ridge' : Ridge(),
+          'RandomForestRegressor': RandomForestRegressor(),
           'LinearSVR' : LinearSVR(),
           'SVR' : SVR(),
           'GradientBoostingRegressor': GradientBoostingRegressor(),
           # 'HistGradientBoostingRegressor': HistGradientBoostingRegressor(), # it is extremely slow on streamlit hosted server
-          'DummyRegressor': DummyRegressor()}
+          'DummyRegressor': DummyRegressor()
+          }
 
 @st.cache_data(ttl = time_to_live_cache) 
 def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
