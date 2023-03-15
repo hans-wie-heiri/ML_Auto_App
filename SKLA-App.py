@@ -159,6 +159,10 @@ st.subheader("Plot Selcted Features")
 
 plot_types = ['Scatter Plot', 'Histogramm', 'Line Plot', 'Bar Plot', 'Box Plot', 'Heatmap of count']
 axis_options = list(df.columns)
+to_many_groupings = col_with_n_uniques(df, axis_options, 50)
+to_many_groupings_list = list(to_many_groupings.keys())
+
+
 aggfun_options = {
     'None': '',
     'Sum': np.sum, 
@@ -192,15 +196,23 @@ else:
 
 if us_plot_type not in ['Histogramm','Heatmap of count']:
     color_options = axis_options.copy()
-    color_options.append(None)
     color_options.remove(us_x_axis)
     if us_x_axis != us_y_axis:
         color_options.remove(us_y_axis)
+    color_options = list(set(color_options) - set(to_many_groupings_list))
+    color_options.append(None)
     with col1_plot:
         us_color_group = st.selectbox('select color grouping', color_options, index = (len(color_options)-1))
 
 if agg_values == 'yes':
-    pivot_df = np.round(pd.pivot_table(df, values=us_y_axis, 
+    if us_color_group != None and len(df[us_color_group].unique()) > 100:
+        pivot_df = np.round(pd.pivot_table(df, values=us_y_axis, 
+                                    index=[us_x_axis], 
+                                    aggfunc=aggfun_options[us_y_axis_agg],
+                                    fill_value=0),2)
+        st.write('to many distinct color groups to aggregate')
+    else: 
+        pivot_df = np.round(pd.pivot_table(df, values=us_y_axis, 
                                     index=[us_x_axis], 
                                     columns=us_color_group, 
                                     aggfunc=aggfun_options[us_y_axis_agg],
@@ -260,8 +272,13 @@ elif us_plot_type == 'Heatmap of count':
     fig = px.imshow(heatmap_df, x=heatmap_df.columns, y=heatmap_df.index, title= title_name, text_auto=True, 
                     color_continuous_scale=px.colors.sequential.Blues_r)
 
-fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
-st.plotly_chart(fig, use_container_width=True, config = config_plotly)
+fig = fig.update_layout(newshape_line_color = drawing_color_plotly)   
+
+try:
+    st.plotly_chart(fig, use_container_width=True, config = config_plotly)
+except:
+    st.warning('Could not create Plot. Maybe Data exceeds the message size limit of 200.0 MB', icon="⚠️")
+
 
 use_cor_matrix = st.radio("Do you want to create a correlation matrix of the numeric variables?", ['no', 'yes'], horizontal=True)
 
@@ -437,20 +454,22 @@ if len(us_pca_var) > 0:
 
 # a lot is set to 100
 n = 100
-list_alotofuniques = col_with_n_uniques(train_df, cat_cols_no_date, n)
+dict_alotofuniques = col_with_n_uniques(train_df, cat_cols_no_date, n)
+list_alotofuniques = list(dict_alotofuniques.keys())
 
 dummy_default_list = set(cat_cols_no_date) - set(list_alotofuniques)
-
-if len(list_alotofuniques) > 0:
-    for i in list_alotofuniques:
-        st.warning(i + ' with type = object but more than 100 unique values', icon="⚠️")
-
 
 # --- dummie code user selected cat columns
 
 us_dummie_var = st.multiselect(
     'Which columns do you want to recode as dummies?',
     cat_cols_no_date, default= list(dummy_default_list))
+
+still_alotofuniques = set(list_alotofuniques) - set(us_dummie_var)
+
+if len(still_alotofuniques) > 0:
+    for i in still_alotofuniques:
+        st.warning(i + ' with type = object and ' + str(dict_alotofuniques[i]) + ' unique values', icon="⚠️")
 
 if len(us_dummie_var) > 0:
     train_df, test_df = dummi_encoding(train_df, test_df, us_dummie_var)
@@ -573,8 +592,8 @@ max_size = 1000000
 
 if max(train_df.size, test_df.size) > max_size:
     st.subheader('Data Size Reduction')
-    st.write('Because the App is hosted by streamlit, it is not intended for very long processing durations. \
-             Therefore the size of the data must remain under ' + str(max_size) + ' elements.')
+    st.write('Because the app is hosted by Streamlit, it is not intended for very long model fitting durations. \
+             Therefore the size of the data is limitted to ' + str(max_size) + ' elements.')
 
 if train_df.size > max_size:
     if us_test_basis == test_basis[1]:
@@ -633,7 +652,7 @@ st.markdown("""---""")
 
 st.header('Launch Model Training and Prediction')
 descr_model_launch = 'Regression models are only launchable if the chosen target variable is a number and \
-classification models in turn, only if it is of type bool, object or int. \
+classification models in turn, only if it is of type bool, object or int and the target has may. 100 different labels. \
 Time Series analysis is only callable if at least one feature has been recoded as date. \
 Unless otherwise indicated, all models are run in the [scikit-learn](https://scikit-learn.org/stable/index.html) -default configuration. \
 Crossvalidation, gridsearch and manual hyper parameter tuning are (not yet) implemented.'
@@ -972,7 +991,7 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
 
 # only if y is a number type
 
-if us_y_var in clas_cols and len(cat_cols_x) == 0:
+if us_y_var in clas_cols and len(cat_cols_x) == 0 and len(train_df[us_y_var].unique()) <= 100:
 
     st.markdown("""---""")
 

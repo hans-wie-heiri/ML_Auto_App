@@ -268,10 +268,11 @@ def create_time_features(df, converted_date_var):
 
 @st.cache_data(ttl = time_to_live_cache) 
 def col_with_n_uniques(df, col_list, n):
-    alotofuniques = []
+    alotofuniques = {}
     for i in col_list:
-        if df[i].nunique() >= n:
-            alotofuniques.append(i)
+        n_unique = df[i].nunique()
+        if n_unique >= n:
+            alotofuniques[i] = n_unique
     return alotofuniques 
 
 
