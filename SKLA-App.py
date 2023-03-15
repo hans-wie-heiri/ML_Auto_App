@@ -18,7 +18,7 @@ from Libs_Functions_SKLA import *
 page_title = 'Machine Learning Automation'
 page_description = 'This App automates predictive data analysis with the [scikit-learn](https://scikit-learn.org/stable/index.html) API. \
 It is functional and automates the process steps for a small data science project or a first shot at model selection. \
-The application does not claim to replace a full and comprehensive Data Science Project. \
+The application does not replace a full and comprehensive Data Science Project. \
 The application allows regression, classification and time series analysis with machine learning algorithms.'
 
 page_icon = ':eyeglasses:' # emoji : https://www.webfx.com/tools/emoji-cheat-sheet/
@@ -107,7 +107,7 @@ if uploaded_file is not None:
 
 
 ## head the data
-st.subheader("First 1'000 Entries of the Dataframe - " + df_name)
+st.subheader("First 1'000 Instances of " + df_name)
 st.dataframe(df.head(1000))
 #st.dataframe(df.head(1000).style.set_precision(2))
 n_row, n_col = df.shape
@@ -120,7 +120,9 @@ st.dataframe(show_info(df))
 # --- Datetime conversion
 
 st.subheader('Datetime conversion')
-st.write('Time series anlysis will only be possible if at least one feature has been converted to a date format.')
+st.write('By default, datetime variables are loaded as type object. \
+        A conversion is necessary if they are to be used as dates. \
+        Time Series anlysis will only be possible if at least one feature has been converted to a date format.')
 
 # find candidates for datetime conversion
 date_candid_cols = datetime_candidate_col(df)
@@ -128,14 +130,8 @@ date_candid_cols = datetime_candidate_col(df)
 # change user selected date columns to datetime 
 cat_cols = find_cat_cols(df)
 us_date_var = st.multiselect(
-    'Which columns do you want to recode as dates?',
+    'Are there columns you want to recode as dates?',
     cat_cols, default=list(date_candid_cols))
-
-if len(us_date_var) > 0:
-    cat_cols_no_date = list(cat_cols)
-    cat_cols_no_date = set(cat_cols_no_date) - set(us_date_var)
-else:
-    cat_cols_no_date = list(cat_cols)
 
 datetimeformats = {'automatic': None,
                'day.month.Year': "%d.%m.%Y",
@@ -144,13 +140,18 @@ datetimeformats = {'automatic': None,
                'Year-month-day': "%Y-%m-%d"}
 
 if len(us_date_var) > 0:
-    us_datetimeformats = st.selectbox('Choose a datetime format', list(datetimeformats.keys()))
+    us_datetimeformats = st.selectbox('Choose the input datetime format:', list(datetimeformats.keys()))
 
 if len(us_date_var) > 0:
     df, converted_date_var = datetime_converter(df, us_date_var, datetimeformats, us_datetimeformats)
 else:
     converted_date_var = [] 
 
+if len(converted_date_var) > 0:
+    cat_cols_no_date = list(cat_cols)
+    cat_cols_no_date = set(cat_cols_no_date) - set(converted_date_var)
+else:
+    cat_cols_no_date = list(cat_cols)
 
 # --- Plot features
 
@@ -262,10 +263,9 @@ elif us_plot_type == 'Heatmap of count':
 fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
 st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
-st.write('Click button if you want to create a correlation matrix of the continuous variables:')
-use_cor_matrix = st.button("Correlation Matrix")
+use_cor_matrix = st.radio("Do you want to create a correlation matrix of the numeric variables?", ['no', 'yes'], horizontal=True)
 
-if use_cor_matrix:
+if use_cor_matrix == 'yes':
     st.subheader("Correlation Matrix of Continuous Variables")
     corr_matrix = df.corr()
     fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale=px.colors.sequential.Blues_r) # reverse color by adding "_r" (eg. Blues_r) 
@@ -278,12 +278,12 @@ st.markdown("""---""")
 # ------------- Data Splitting and Preprocessinng --------------
 
 st.header('Data Splitting and Preprocessing')
-st.write('The data is first split into a training and a testing set. To avoid data leakage by train-test contamination all further \
-         preprocessing steps will be executed separately in training (fit and transform) and testing (only transform).')
+st.write('The data is first split into a training and a test set. To avoid data leakage by train-test contamination all further \
+         preprocessing steps will be executed separately in training (e.g. fit and transform) and test (e.g. only transform).')
 
 st.write("")
 
-st.subheader('Splitting into Training and Testing set')
+st.subheader('Splitting into Training and Test set')
 
 test_basis = ['size', 'date range']
 
@@ -298,8 +298,8 @@ if len(converted_date_var) > 0:
     # user selected test basis
     st.write('If you want to do a regression in form of a time series anlysis, you need to select "date range".\
          The first feature you converted to date format will be used as index. Regardless of your selection\
-         for testing set splitting, all converted dates will undergo a feature extraction.')
-    us_test_basis = st.radio('Do you want to base your test set on size or a date range?', test_basis, index=0, horizontal=True)  
+         for test set splitting, all converted dates will undergo a feature extraction.')
+    us_test_basis = st.radio('Do you want to base your test set on size (random instances) or a date range?', test_basis, index=0, horizontal=True)  
     
 else:
     us_test_basis = test_basis[0]
@@ -477,7 +477,7 @@ st.dataframe(show_info(train_df))
 
 
 
-st.subheader("Download the Preprocessed Training Data")
+st.subheader("Download the Preprocessed Data")
 
 st.download_button(
   label="Download Training Data as CSV",
@@ -488,7 +488,7 @@ st.download_button(
 )
 
 st.download_button(
-  label="Download Testing Data as CSV",
+  label="Download Test Data as CSV",
   data=convert_df_to_csv(test_df),
   file_name= (df_name + 'test_preprocessed.csv'),
   mime='text/csv',
@@ -560,7 +560,7 @@ X_train_df = train_df[us_x_var]
 y_test_ser = test_df[us_y_var]
 X_test_df = test_df[us_x_var]
 
-st.subheader('See Selected Variables')
+st.subheader('Selected Variables')
 
 st.write('Chosen target:')
 
@@ -583,7 +583,7 @@ descr_model_launch = 'Regression models are only launchable if the chosen target
 classification models in turn, only if it is of type bool, object or int. \
 Time Series analysis is only callable if at least one feature has been recoded as date. \
 Unless otherwise indicated, all models are run in the [scikit-learn](https://scikit-learn.org/stable/index.html) -default configuration. \
-Crosscalitaion, Gridsearch and manual hyper parameter tuning are (not yet) implemented.'
+Crossvalidation, gridsearch and manual hyper parameter tuning are (not yet) implemented.'
 
 st.write(descr_model_launch)
 st.write("")
@@ -664,21 +664,34 @@ def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
     modelnames = []
     r2_scores = []
     mae_scores = []
+    mse_scores = []
+    rmse_scores = []
+    duration_scores = []
     predictions = {}
     residuals = {}
     
     # loop through models
     for i in us_reg_models:
         m_reg = regression_models[i]
-        m_reg.fit(X_train, y_train)
 
+        start_time = time.time()
+        m_reg.fit(X_train, y_train)
         y_test_predict = m_reg.predict(X_test)
-        mae = mean_absolute_error(y_test_predict, y_test)
+        end_time = time.time()
+
+        duration = (end_time - start_time)
+        mae = mean_absolute_error(y_test, y_test_predict)
+        mse = mean_squared_error(y_test, y_test_predict)
+        rmse = math.sqrt(mse)
         r2 = m_reg.score(X_test, y_test)
 
         modelnames.append(i)
         r2_scores.append(round(r2, 4))
         mae_scores.append(round(mae, 4))
+        mse_scores.append(round(mse, 4))
+        rmse_scores.append(round(rmse, 4))
+        duration_scores.append(round(duration, 4))
+
         predictions[i] = y_test_predict
         residuals[i] = (y_test_predict - y_test)
 
@@ -689,7 +702,7 @@ def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
         
         
     # create score dataframe
-    reg_scores_df = pd.DataFrame({'Model': modelnames, 'R2': r2_scores, 'MAE': mae_scores})
+    reg_scores_df = pd.DataFrame({'Model': modelnames, 'R2': r2_scores, 'MAE': mae_scores, 'MSE': mse_scores, 'RMSE': rmse_scores, 'Duration (sec)': duration_scores})
     reg_scores_df = reg_scores_df.sort_values(by='R2', ascending = False).reset_index().drop(columns=['index'])
     R2_floor = 0.0
     reg_scores_df['R2_floored_0'] = np.maximum(reg_scores_df['R2'], R2_floor)
@@ -734,6 +747,7 @@ def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
     w_precision_scores = []
     w_recall_scores = []
     w_f1_scores = []
+    duration_scores = []
     predictions = {}
     class_labels = {}
 
@@ -741,9 +755,13 @@ def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
     # loop through models
     for i in us_clas_models:
         m_clas = classifier_models[i]
-        m_clas.fit(X_train, y_train)
 
+        start_time = time.time()
+        m_clas.fit(X_train, y_train)
         y_test_predict = m_clas.predict(X_test)
+        end_time = time.time()
+
+        duration = (end_time - start_time)
         accuracy = accuracy_score(y_test, y_test_predict)
         precision = precision_score(y_test, y_test_predict, average='weighted')
         recall = recall_score(y_test, y_test_predict, average='weighted')
@@ -754,6 +772,7 @@ def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
         w_precision_scores.append(round(precision, 4))
         w_recall_scores.append(round(recall, 4))
         w_f1_scores.append(round(f1, 4))
+        duration_scores.append(round(duration, 4))
         predictions[i] = y_test_predict
         class_labels[i] = list(m_clas.classes_)
 
@@ -763,7 +782,7 @@ def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
         my_bar.progress(percent_complete, text=str(progress_text[text_counter]))
         
     # create score dataframe
-    clas_scores_df = pd.DataFrame({'Model': modelnames, 'Accuracy': accuracy_scores, 'Precision': w_precision_scores, 'Recall': w_recall_scores, 'F1': w_f1_scores})
+    clas_scores_df = pd.DataFrame({'Model': modelnames, 'Accuracy': accuracy_scores, 'Precision': w_precision_scores, 'Recall': w_recall_scores, 'F1': w_f1_scores, 'Duration (sec)': duration_scores})
     clas_scores_df = clas_scores_df.sort_values(by='Accuracy', ascending = False).reset_index().drop(columns=['index'])
 
     # create prediction dataframe
@@ -857,10 +876,16 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
         use_reg_model = st.radio('show results for:', reg_scores_df.Model, key='use_reg_model') 
 
         # plot model value vs actual
-        fig = px.scatter(reg_pred_y_df, x = use_reg_model, y = 'y_test', 
-                    title= 'Model Prediction vs True Target Value - ' + use_reg_model).update_layout(
-                    xaxis_title="Model Prediction", yaxis_title="True Target Value")
+        fig = px.scatter(reg_pred_y_df, x = 'y_test', y = use_reg_model, 
+                    title= 'True Target Value vs Model Prediction - ' + use_reg_model).update_layout(
+                    yaxis_title="Model Prediction", xaxis_title="True Target Value")
         fig = fig.add_traces(px.line(reg_pred_y_df, x='y_test', y='y_test', color_discrete_sequence=["yellow"]).data)
+        # legend naming traces and showing in legend
+        fig['data'][0]['name']= us_y_var
+        fig['data'][0]['showlegend']=True
+        fig['data'][1]['name']='f(x) = x'
+        fig['data'][1]['showlegend']=True
+        # fig = fig.update_traces(selector = dict(name="first_trace"))
         fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
         st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
