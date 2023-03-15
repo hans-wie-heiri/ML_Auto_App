@@ -396,9 +396,11 @@ elif us_test_basis == test_basis[1]:
 
 st.write('')
 st.subheader('Data Preprocessing')
-st.write("NA-values will automatically be filled (numerical variables by their mean and categorical by their mode) \
-         alternatively all instances with NA-values can be droped.")
-
+st.write("It is assumed, that feature engineering steps like binning and ordinal encoding are allready applied to the data. \
+         NA-values will automatically be filled (for numerical features by their mean and categorical by their mode). \
+         Alternatively all instances with NA-values can be droped. The PCA retains 95% of the selected features variance \
+         and replaces the features with those dimensions. Dummies refers to what is also known as 'One Hot Encoding'.")
+st.write('')
 # --- fill or drop NA
 
 NA_handling = {
@@ -580,6 +582,9 @@ us_x_var = st.multiselect(
     'Which columns do you want as inputs for the prediction?',
     list(x_options_df),
     default=list(x_options_df))
+
+if len(us_x_var) == 0:
+    st.warning('Please select at least one feature. Otherwise no model can be launched.', icon="⚠️")
 
 
 
@@ -888,12 +893,13 @@ def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
 
 
 if len(cat_cols_x) > 0:
-    st.warning('Models can not be launched with categroical independent variables '+str(list(cat_cols_x))+'. Please recode as dummies or exclude.', icon="⚠️")
+    st.warning('Models can not be launched with categroical independent variables '+str(list(cat_cols_x))+'.\
+                Please recode as dummies or exclude.', icon="⚠️")
 
 #--- Regression models
 
 # only if y is a number type
-if us_y_var in reg_cols and len(cat_cols_x) == 0:
+if us_y_var in reg_cols and len(cat_cols_x) == 0 and len(us_x_var) > 0:
 
     st.markdown("""---""")
     st.subheader("Regression Models")
@@ -1010,7 +1016,7 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
 
 unique_y = len(train_df[us_y_var].unique())
 
-if us_y_var in clas_cols and len(cat_cols_x) == 0 and unique_y > 1 and  unique_y <= 100 :
+if us_y_var in clas_cols and len(cat_cols_x) == 0 and unique_y > 1 and  unique_y <= 100 and len(us_x_var) > 0:
 
     st.markdown("""---""")
 
@@ -1150,7 +1156,7 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0 and unique_y > 1 and  unique_y
 
 #--- Time Series models
 
-if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == test_basis[1]:
+if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == test_basis[1] and len(us_x_var) > 0:
 
     st.markdown("""---""")
     st.subheader("Regression Models on Time Series")
