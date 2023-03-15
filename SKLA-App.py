@@ -671,7 +671,7 @@ st.markdown("""---""")
 
 st.header('Launch Model Training and Prediction')
 descr_model_launch = 'Regression models are only launchable if the chosen target variable is a number and \
-classification models in turn, only if it is of type bool, object or int and the target has max. 100 unique labels. \
+classification models in turn, only if it is of type bool, object or int and the target has between 2 and 100 unique labels. \
 Time Series analysis is only callable if at least one feature has been recoded as date. \
 Unless otherwise indicated, all models are run in the [scikit-learn](https://scikit-learn.org/stable/index.html) -default configuration. \
 Crossvalidation, gridsearch and manual hyper parameter tuning are (not yet) implemented.'
@@ -1008,9 +1008,9 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
 
 #--- Classification models
 
-# only if y is a number type
+unique_y = len(train_df[us_y_var].unique())
 
-if us_y_var in clas_cols and len(cat_cols_x) == 0 and len(train_df[us_y_var].unique()) <= 100:
+if us_y_var in clas_cols and len(cat_cols_x) == 0 and unique_y > 1 and  unique_y <= 100 :
 
     st.markdown("""---""")
 
