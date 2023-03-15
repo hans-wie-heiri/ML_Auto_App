@@ -201,8 +201,11 @@ if us_plot_type not in ['Histogramm','Heatmap of count']:
         color_options.remove(us_y_axis)
     color_options = list(set(color_options) - set(to_many_groupings_list))
     color_options.append(None)
-    with col1_plot:
-        us_color_group = st.selectbox('select color grouping', color_options, index = (len(color_options)-1))
+    if len(color_options) > 1:
+        with col1_plot:
+            us_color_group = st.selectbox('select color grouping', color_options, index = (len(color_options)-1))
+    else:
+        us_color_group = None
 
 if agg_values == 'yes':
     if us_color_group != None and len(df[us_color_group].unique()) > 100:
@@ -300,7 +303,7 @@ st.write('The data is first split into a training and a test set. To avoid data 
 
 st.write("")
 
-st.subheader('Splitting into Training and Test set')
+st.subheader('Splitting into Training and Test Set')
 
 test_basis = ['size', 'date range']
 
@@ -502,20 +505,21 @@ st.dataframe(show_info(train_df))
 
 st.subheader("Download the Preprocessed Data")
 
+
 st.download_button(
-  label="Download Training Data as CSV",
-  data=convert_df_to_csv(train_df),
-  file_name= (df_name + 'train_preprocessed.csv'),
-  mime='text/csv',
-  key='ptrd'
+label="Download Training Data as CSV",
+data=convert_df_to_csv(train_df),
+file_name= (df_name + 'train_preprocessed.csv'),
+mime='text/csv',
+key='ptrd'
 )
 
 st.download_button(
-  label="Download Test Data as CSV",
-  data=convert_df_to_csv(test_df),
-  file_name= (df_name + 'test_preprocessed.csv'),
-  mime='text/csv',
-  key='pted'
+label="Download Test Data as CSV",
+data=convert_df_to_csv(test_df),
+file_name= (df_name + 'test_preprocessed.csv'),
+mime='text/csv',
+key='pted'
 )
 
 
@@ -644,15 +648,30 @@ col2.plotly_chart(fig, use_container_width=True)
 
 st.write('Chosen features:')
 st.dataframe(X_train_df.head(1000))
-#st.dataframe(X_train_df.head(1000).style.set_precision(2))
-n_row, n_col = X_train_df.shape
-st.write(n_col, " features, ", n_row, " instances, ", X_train_df.size, " total elements")
+
+st.subheader("Download the Selected Data for Modeling")
+
+st.download_button(
+label="Download Training Data as CSV",
+data=convert_df_to_csv(train_df),
+file_name= (df_name + 'train_selected.csv'),
+mime='text/csv',
+key='ptrd_sel'
+)
+
+st.download_button(
+label="Download Test Data as CSV",
+data=convert_df_to_csv(test_df),
+file_name= (df_name + 'test_selected.csv'),
+mime='text/csv',
+key='pted_sel'
+)
 
 st.markdown("""---""")
 
 st.header('Launch Model Training and Prediction')
 descr_model_launch = 'Regression models are only launchable if the chosen target variable is a number and \
-classification models in turn, only if it is of type bool, object or int and the target has may. 100 different labels. \
+classification models in turn, only if it is of type bool, object or int and the target has max. 100 unique labels. \
 Time Series analysis is only callable if at least one feature has been recoded as date. \
 Unless otherwise indicated, all models are run in the [scikit-learn](https://scikit-learn.org/stable/index.html) -default configuration. \
 Crossvalidation, gridsearch and manual hyper parameter tuning are (not yet) implemented.'
