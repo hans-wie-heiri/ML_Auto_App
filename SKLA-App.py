@@ -464,17 +464,28 @@ list_alotofuniques = list(dict_alotofuniques.keys())
 
 dummy_default_list = set(cat_cols_no_date) - set(list_alotofuniques)
 
+dummy_not_possible = []
+for i in list_alotofuniques:
+    if dict_alotofuniques[i] > 500:
+        dummy_not_possible.append(i)
+
+dummy_possible = set(cat_cols_no_date) - set(dummy_not_possible)
+
 # --- dummie code user selected cat columns
 
 us_dummie_var = st.multiselect(
     'Which columns do you want to recode as dummies?',
-    cat_cols_no_date, default= list(dummy_default_list))
+    dummy_possible, default= list(dummy_default_list))
 
 still_alotofuniques = set(list_alotofuniques) - set(us_dummie_var)
 
 if len(still_alotofuniques) > 0:
     for i in still_alotofuniques:
-        st.warning(i + ' with type = object and ' + str(dict_alotofuniques[i]) + ' unique values', icon="⚠️")
+        if i in dummy_not_possible:
+            st.warning(i + ' with type = object and ' + str(dict_alotofuniques[i]) + ' unique values', icon="⚠️")
+        else:
+            st.info(i + ' with type = object and ' + str(dict_alotofuniques[i]) + ' unique values', icon="ℹ️")
+
 
 if len(us_dummie_var) > 0:
     train_df, test_df = dummi_encoding(train_df, test_df, us_dummie_var)

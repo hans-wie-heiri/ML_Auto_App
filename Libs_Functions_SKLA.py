@@ -281,17 +281,27 @@ def col_with_n_uniques(df, col_list, n):
 @st.cache_data(ttl = time_to_live_cache) 
 def dummi_encoding(train_df, test_df, us_dummie_var):
     # create dummies for cat variables
-    enc = OneHotEncoder(handle_unknown='ignore', sparse_output=False).set_output(transform="pandas")
-    enc.fit(train_df[us_dummie_var])
-    train_dum_df = enc.transform(train_df[us_dummie_var])
-    test_dum_df = enc.transform(test_df[us_dummie_var])
-    # drop original cat column from df
-    train_df = train_df.drop(train_df[us_dummie_var], axis = 1)
-    test_df = test_df.drop(test_df[us_dummie_var], axis = 1)
-    # concat df and cat variables
-    train_df = pd.concat([train_df, train_dum_df], axis = 1)
-    test_df = pd.concat([test_df, test_dum_df], axis = 1)
-    return train_df, test_df
+    try:
+        enc = OneHotEncoder(handle_unknown='ignore', sparse_output=False).set_output(transform="pandas")
+        enc.fit(train_df[us_dummie_var])
+        train_dum_df = enc.transform(train_df[us_dummie_var])
+        test_dum_df = enc.transform(test_df[us_dummie_var])
+        # drop original cat column from df
+        train_df = train_df.drop(train_df[us_dummie_var], axis = 1)
+        test_df = test_df.drop(test_df[us_dummie_var], axis = 1)
+        # concat df and cat variables
+        train_df = pd.concat([train_df, train_dum_df], axis = 1)
+        test_df = pd.concat([test_df, test_dum_df], axis = 1)
+        return train_df, test_df
+    except(MemoryError):
+        pass
+        st.warning('Memory Error occured. Dummie encoding has to many dimensoins', icon="⚠️")
+        return train_df, test_df
+    except:
+        pass
+        st.warning('Could not recode features into dummies.', icon="⚠️")
+        return train_df, test_df
+
 
 
 # dataframe to csv converter
