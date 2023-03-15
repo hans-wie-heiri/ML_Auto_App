@@ -461,6 +461,10 @@ if us_test_basis == test_basis[1]:
     train_df = train_df.set_index(new_name_datetimeindex, drop=True)
     test_df = test_df.set_index(new_name_datetimeindex, drop=True)
 
+
+
+
+
 ## show data after preprocessing
 
 st.subheader("Training Dataframe After Preprocessing")
@@ -495,6 +499,7 @@ st.download_button(
   key='pted'
 )
 
+
 st.markdown("""---""")
 
 # ------------- Target and Feature selection --------------
@@ -521,8 +526,8 @@ x_options_df = train_df.drop(columns=[us_y_var])
 cat_cols_x = find_cat_cols(x_options_df)
 x_options_df = x_options_df.drop(cat_cols_x, axis = 1)
 if len(cat_cols_x) > 0:
-    st.warning('Models can not be launched with categroical features '+str(list(cat_cols_x))+'.\
-                Please recode as dummies otherwise they can only be used as dependent variable.', icon="⚠️")
+    st.info('Models can not be launched with categroical features '+str(list(cat_cols_x))+'.\
+                Unless recoded as dummies they can only be used as target variable.', icon="ℹ️")
 
 
 variance_threshold_options = {
@@ -554,11 +559,59 @@ us_x_var = st.multiselect(
     default=list(x_options_df))
 
 
+
+
+# --- safety reduction in data size
+
+us_all_var = us_x_var.copy()
+us_all_var.append(us_y_var)
+
+train_df = train_df[us_all_var]
+test_df = test_df[us_all_var]
+
+max_size = 1000000
+
+if max(train_df.size, test_df.size) > max_size:
+    st.subheader('Data Size Reduction')
+    st.write('Because the App is hosted by streamlit, it is not intended for very long processing durations. \
+             Therefore the size of the data must remain under ' + str(max_size) + ' elements.')
+
+if train_df.size > max_size:
+    if us_test_basis == test_basis[1]:
+        st.warning('Max. allowed elements for trainig set is ' + str(max_size) + '. Training set has '+ str(train_df.size) +
+                   '. Beginning of periode will be pruned to reduce size.' , icon="⚠️")
+        train_df = reduce_size_daterange_beginning(train_df, max_size)
+    else:
+        st.warning('Max. allowed elements for trainig set is ' + str(max_size) + '. Training set has '+ str(train_df.size) +
+                   '. Instances will be randomly sampled to reduce size.' , icon="⚠️")
+        train_df = reduce_size_rand(train_df, max_size)
+
+if test_df.size > max_size:
+    if us_test_basis == test_basis[1]:
+        st.warning('Max. allowed elements for test set is ' + str(max_size) + '. Test set has '+ str(test_df.size) +
+                   '. End of periode will be pruned to reduce size.' , icon="⚠️")
+        test_df = reduce_size_daterange_end(test_df, max_size)
+    else:
+        st.warning('Max. allowed elements for test set is ' + str(max_size) + '. Test set has '+ str(test_df.size) +
+                   '. Instances will be randomly sampled to reduce size.' , icon="⚠️")
+        test_df = reduce_size_rand(test_df, max_size)
+
+n_row, n_col = train_df.shape
+st.write("Training set: " , n_col, " features, ", n_row, " instances, ", train_df.size, " total elements")
+n_row, n_col = test_df.shape
+st.write("Test set: " , n_col, " features, ", n_row, " instances, ", test_df.size, " total elements")
+
+
+# --- Split X and Y
+
 y_train_ser = train_df[us_y_var]
 X_train_df = train_df[us_x_var]
 
 y_test_ser = test_df[us_y_var]
 X_test_df = test_df[us_x_var]
+
+
+# --- Selected final X and Y
 
 st.subheader('Selected Variables')
 
@@ -643,7 +696,7 @@ regression_models = {
           'Ridge' : Ridge(),
           'RandomForestRegressor': RandomForestRegressor(),
           'LinearSVR' : LinearSVR(),
-          'SVR' : SVR(),
+          # 'SVR' : SVR(), extremly slow on big data sets
           'GradientBoostingRegressor': GradientBoostingRegressor(),
           # 'HistGradientBoostingRegressor': HistGradientBoostingRegressor(), # it is extremely slow on streamlit hosted server
           'DummyRegressor': DummyRegressor()

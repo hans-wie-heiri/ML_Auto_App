@@ -322,6 +322,33 @@ def scaling_test_train(X_train_df, X_test_df, y_train_ser, y_test_ser, us_scaler
     return(X_train, X_test, y_train, y_test)
 
 
+@st.cache_data(ttl = time_to_live_cache) 
+def reduce_size_rand(df, max_size):
+    n_row, n_col = df.shape
+    max_rows = math.floor(max_size / n_col)
+    df_reduced = df.copy()
+    df_reduced = df_reduced.sample(frac= 1)
+    df_reduced = df_reduced[:int(max_rows)]
+    return df_reduced
+
+@st.cache_data(ttl = time_to_live_cache) 
+def reduce_size_daterange_beginning(df, max_size):
+    n_row, n_col = df.shape
+    max_rows = math.floor(max_size / n_col)
+    start_rows = n_row - max_rows
+    df_reduced = df.copy()
+    df_reduced = df_reduced[int(start_rows):]
+    return df_reduced
+
+@st.cache_data(ttl = time_to_live_cache) 
+def reduce_size_daterange_end(df, max_size):
+    n_row, n_col = df.shape
+    max_rows = math.floor(max_size / n_col)
+    df_reduced = df.copy()
+    df_reduced = df_reduced[:int(max_rows)]
+    return df_reduced
+
+
 # remove dupplicate function that keeps last version of index for time series
 @st.cache_data(ttl = time_to_live_cache) 
 def remove_duplicated_index(df):
