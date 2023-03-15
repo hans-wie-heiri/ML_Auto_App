@@ -693,7 +693,7 @@ def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
         duration_scores.append(round(duration, 4))
 
         predictions[i] = y_test_predict
-        residuals[i] = (y_test_predict - y_test)
+        residuals[i] = (y_test - y_test_predict)
 
         text_counter += 1
         percent_complete += increment_progress
@@ -891,7 +891,7 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0:
 
         # plot histogramm of residuals
         fig = px.histogram(reg_res_y_df, x = use_reg_model,
-                    title="Histogramm of Residuals - " + use_reg_model).update_layout(
+                    title="Histogramm of Residuals (True Target Values - Predicted Values) - " + use_reg_model).update_layout(
                     xaxis_title="Residuals")
 
         fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
@@ -1161,7 +1161,7 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
         
         # plot histogramm of residuals
         fig = px.histogram(ts_res_y_df, x = use_ts_model,
-                    title="Histogramm of Residuals - " + use_ts_model).update_layout(
+                    title="Histogramm of Residuals (True Target Values - Predicted Values) - " + use_ts_model).update_layout(
                     xaxis_title="residuals")
 
         fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
@@ -1170,7 +1170,7 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
         # plot residuals and True Target Value
         ts_res_y_df[new_name_datetimeindex] = ts_res_y_df.index # two y doesn't work on index appearently
         fig = px.bar(ts_res_y_df, x = new_name_datetimeindex, y = use_ts_model,
-                    title="Residuals over Datetime - " + use_ts_model).update_layout(
+                    title="Residuals over " + new_name_datetimeindex + " - " + use_ts_model).update_layout(
                     xaxis_title=new_name_datetimeindex, yaxis_title="residuals")
 
         fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
