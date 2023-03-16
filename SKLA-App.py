@@ -17,8 +17,8 @@ from Libs_Functions_SKLA import *
 
 page_title = 'Machine Learning Automation'
 page_description = 'This App automates predictive data analysis with the [scikit-learn](https://scikit-learn.org/stable/index.html) API. \
-It is functional and automates the process steps for a small data science project or a first shot at model selection. \
-The application does not replace a full and comprehensive Data Science Project. \
+It is a functional prototype and automates the process steps for a small data science project or a first shot at model selection. \
+The application does not replace a full and comprehensive data science project. It is also limited in the capacity the Streamlit hosting provides. \
 The application allows regression, classification and time series analysis with machine learning algorithms.'
 
 page_icon = ':eyeglasses:' # emoji : https://www.webfx.com/tools/emoji-cheat-sheet/
@@ -460,13 +460,15 @@ if len(us_pca_var) > 0:
 # a lot is set to 100
 n = 100
 dict_alotofuniques = col_with_n_uniques(train_df, cat_cols_no_date, n)
+# sort by first second item which is the number of uniques.
+dict_alotofuniques = dict(sorted(dict_alotofuniques.items(), key=lambda item: item[1]))
 list_alotofuniques = list(dict_alotofuniques.keys())
 
 dummy_default_list = set(cat_cols_no_date) - set(list_alotofuniques)
 
 dummy_not_possible = []
 for i in list_alotofuniques:
-    if dict_alotofuniques[i] > 500:
+    if dict_alotofuniques[i] > 200:
         dummy_not_possible.append(i)
 
 dummy_possible = set(cat_cols_no_date) - set(dummy_not_possible)
@@ -474,10 +476,12 @@ dummy_possible = set(cat_cols_no_date) - set(dummy_not_possible)
 # --- dummie code user selected cat columns
 
 us_dummie_var = st.multiselect(
-    'Which columns do you want to recode as dummies?',
+    'Which columns do you want to recode as dummies? (max. 200 unique values per feature)',
     dummy_possible, default= list(dummy_default_list))
 
-still_alotofuniques = set(list_alotofuniques) - set(us_dummie_var)
+
+still_alotofuniques=[i for i in list_alotofuniques if i not in us_dummie_var]
+
 
 if len(still_alotofuniques) > 0:
     for i in still_alotofuniques:
