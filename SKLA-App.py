@@ -816,7 +816,7 @@ def reg_models_comparison(X_train, X_test, y_train, y_test, us_reg_models):
     reg_scores_df = pd.DataFrame({'Model': modelnames, 'R2': r2_scores, 'MAE': mae_scores, 'MSE': mse_scores, 'RMSE': rmse_scores, 'Duration (sec)': duration_scores})
     reg_scores_df = reg_scores_df.sort_values(by='R2', ascending = False).reset_index().drop(columns=['index'])
     R2_floor = 0.0
-    reg_scores_df['R2_floored_0'] = np.maximum(reg_scores_df['R2'], R2_floor)
+    reg_scores_df['max(R2, 0)'] = np.maximum(reg_scores_df['R2'], R2_floor)
 
     # create prediction dataframe
     reg_pred_y_df = pd.DataFrame(predictions)
@@ -963,8 +963,8 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0 and len(us_x_var) > 0:
         st.subheader("Results for Regression Models on Testset")
 
         # plot model scores
-        fig = px.bar(reg_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
-            title="Model Comparison on R2 (floored at 0)")
+        fig = px.bar(reg_scores_df, x = 'max(R2, 0)', y = 'Model', orientation = 'h', color = 'max(R2, 0)',
+            title="Model Comparison on R2 (plot min. value = 0)")
         fig['layout']['yaxis']['autorange'] = "reversed"
         fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
         st.plotly_chart(fig, use_container_width=True, config = config_plotly)
@@ -1232,7 +1232,7 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
         st.subheader("Results for Regression Models on Testset")
 
         # plot model scores
-        fig = px.bar(ts_scores_df, x = 'R2_floored_0', y = 'Model', orientation = 'h', color = 'R2_floored_0',
+        fig = px.bar(ts_scores_df, x = 'max(R2, 0)', y = 'Model', orientation = 'h', color = 'max(R2, 0)',
             title="Model Comparison on R2 (floored at 0)")
         fig['layout']['yaxis']['autorange'] = "reversed"
         fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
