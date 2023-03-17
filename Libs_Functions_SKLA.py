@@ -344,19 +344,30 @@ def reduce_size_rand(df, max_size):
 
 @st.cache_data(ttl = time_to_live_cache) 
 def reduce_size_daterange_beginning(df, max_size):
-    n_row, n_col = df.shape
-    max_rows = math.floor(max_size / n_col)
-    start_rows = n_row - max_rows
     df_reduced = df.copy()
-    df_reduced = df_reduced[int(start_rows):]
+    unique_date = sorted(list(df_reduced.index.unique()))
+    size = df_reduced.size
+    # loop to drop dates until the max size is achieved
+    for i in unique_date:  
+        if size > max_size:
+            df_reduced = df_reduced.drop(i)
+            size = df_reduced.size
+        else:
+            break
     return df_reduced
 
 @st.cache_data(ttl = time_to_live_cache) 
 def reduce_size_daterange_end(df, max_size):
-    n_row, n_col = df.shape
-    max_rows = math.floor(max_size / n_col)
     df_reduced = df.copy()
-    df_reduced = df_reduced[:int(max_rows)]
+    unique_date = sorted(list(df_reduced.index.unique()), reverse=True)
+    size = df_reduced.size
+    # loop to drop dates until the max size is achieved
+    for i in unique_date:  
+        if size > max_size:
+            df_reduced = df_reduced.drop(i)
+            size = df_reduced.size
+        else:
+            break
     return df_reduced
 
 
