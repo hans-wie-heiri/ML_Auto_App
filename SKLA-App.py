@@ -375,13 +375,6 @@ elif us_test_basis == test_basis[1]:
 
     # Split 
     df_ts = df.set_index(ts_index)
-
-    # remove duplicates from index and sort
-        # train_df = remove_duplicated_index(train_df)
-        # train_df = train_df.sort_index()
-        # test_df = remove_duplicated_index(test_df)
-        # test_df = test_df.sort_index()
-
     train_df, test_df = split_timeseries(df_ts, us_start_date, us_end_date)
     
     # Reset index and keep datetime index as col for later
