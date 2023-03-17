@@ -1,4 +1,4 @@
-# ------------- ToDo List --------------
+    # ------------- ToDo List --------------
 # - crashproove
 # - add clustering ?
 # - st.experimental_data_editor make dataframe editable ?
@@ -152,6 +152,7 @@ if len(converted_date_var) > 0:
     cat_cols_no_date = set(cat_cols_no_date) - set(converted_date_var)
 else:
     cat_cols_no_date = list(cat_cols)
+
 
 # --- Plot features
 
@@ -374,6 +375,13 @@ elif us_test_basis == test_basis[1]:
 
     # Split 
     df_ts = df.set_index(ts_index)
+
+    # remove duplicates from index and sort
+        # train_df = remove_duplicated_index(train_df)
+        # train_df = train_df.sort_index()
+        # test_df = remove_duplicated_index(test_df)
+        # test_df = test_df.sort_index()
+
     train_df, test_df = split_timeseries(df_ts, us_start_date, us_end_date)
     
     # Reset index and keep datetime index as col for later
@@ -1210,17 +1218,6 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
         st.session_state.test_size_user = test_size_identifier
         st.session_state.scaler_user = us_scaler_key
         st.session_state.ts_model_selection = us_ts_models
-        
-       
-        # remove duplicates from index and sort
-        train_df = remove_duplicated_index(train_df)
-        train_df = train_df.sort_index()
-        test_df = remove_duplicated_index(test_df)
-        test_df = test_df.sort_index()
-
-
-        y_ser_ts = df_ts[us_y_var]
-        X_df_ts = df_ts[us_x_var]
 
         # run scaling
         X_train, X_test, y_train, y_test = scaling_test_train(X_train_df, X_test_df, y_train_ser, y_test_ser, us_scaler_key)
@@ -1233,7 +1230,7 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
 
         # plot model scores
         fig = px.bar(ts_scores_df, x = 'max(R2, 0)', y = 'Model', orientation = 'h', color = 'max(R2, 0)',
-            title="Model Comparison on R2 (floored at 0)")
+            title="Model Comparison on R2 (min. Value = 0)")
         fig['layout']['yaxis']['autorange'] = "reversed"
         fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
         st.plotly_chart(fig, use_container_width=True, config = config_plotly)
@@ -1256,16 +1253,18 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
         # user model result selection
         use_ts_model = st.radio('show results for:', ts_scores_df.Model, key='use_ts_model')
 
-        # create a complete dataframe for plotting
+        # create a complete dataframe for plotting by grouping by date with the mean
         ts_pred_y_df.set_index(test_df.index, inplace=True)
         df_ts = pd.concat([train_df, test_df], axis = 0)
-        pred_df_ts = pd.concat([df_ts, ts_pred_y_df], axis = 1)
+        df_ts_by_date = df_ts.groupby(new_name_datetimeindex)[us_y_var].mean()
+        ts_pred_y_df_by_date = ts_pred_y_df.groupby(new_name_datetimeindex)[ts_pred_y_df.columns].mean()
+        pred_df_ts = pd.concat([df_ts_by_date, ts_pred_y_df_by_date], axis = 1)
 
         pred_df_ts[new_name_datetimeindex] = pred_df_ts.index # two y doesn't work on index appearently
         fig = px.line(pred_df_ts, x=new_name_datetimeindex, y=[us_y_var, use_ts_model]).update_layout(
                 xaxis_title=new_name_datetimeindex, 
-                yaxis_title= (us_y_var + " and Prediction"),
-                title = 'Time Series and Prediction')
+                yaxis_title= ('Mean of ' + us_y_var),
+                title = ('Mean of True Target Values and Predicted Values by ' + new_name_datetimeindex))
         fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
         st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
@@ -1279,10 +1278,13 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
         fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
         st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
+        # group residuals by date and calculate mean
+        ts_res_y_df_by_date = ts_res_y_df.groupby(new_name_datetimeindex)[ts_res_y_df.columns].mean()
+
         # plot residuals and True Target Value
-        ts_res_y_df[new_name_datetimeindex] = ts_res_y_df.index # two y doesn't work on index appearently
-        fig = px.bar(ts_res_y_df, x = new_name_datetimeindex, y = use_ts_model,
-                    title="Residuals over " + new_name_datetimeindex + " - " + use_ts_model).update_layout(
+        ts_res_y_df_by_date[new_name_datetimeindex] = ts_res_y_df_by_date.index # two y doesn't work on index appearently
+        fig = px.bar(ts_res_y_df_by_date, x = new_name_datetimeindex, y = use_ts_model,
+                    title="Mean of Residuals per " + new_name_datetimeindex + " - " + use_ts_model).update_layout(
                     xaxis_title=new_name_datetimeindex, yaxis_title="residuals")
 
         fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
