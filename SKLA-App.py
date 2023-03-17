@@ -105,6 +105,10 @@ if uploaded_file is not None:
             df_name = use_csv_name
             st.warning('Could not read the file. Dataset from list is loaded.', icon="⚠️")
 
+if len(df) < 10:
+    st.warning('Dataset must have at least 10 instances. Uploaded file has ' + str(len(df)) + '. Dataset from list is loaded.', icon="⚠️")
+    df = load_data(csv_options[use_csv_name][0], sep= csv_options[use_csv_name][1])
+    df_name = use_csv_name
 
 ## head the data
 st.subheader("First 1'000 Instances of " + df_name)
@@ -743,8 +747,8 @@ check_test_size_no_change = st.session_state.test_size_user == test_size_identif
 check_scaler_no_change = st.session_state.scaler_user == us_scaler_key
 
 # check y for possible models
-reg_cols = find_num_cols(df)
-clas_cols = df.select_dtypes(include=['object', 'bool', 'int']).columns
+reg_cols = find_num_cols(train_df)
+clas_cols = train_df.select_dtypes(include=['object', 'bool', 'int']).columns
 cat_cols_x = find_cat_cols(X_train_df)
 
 
