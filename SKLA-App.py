@@ -693,33 +693,12 @@ key='pted_sel'
 
 st.markdown("""---""")
 
-st.header('Launch Model Training and Prediction')
-descr_model_launch = 'Regression models are only launchable if the chosen target variable is a number and \
-classification models in turn, only if it is of type bool, object or int and the target has between 2 and 100 unique labels. \
-Time Series analysis is only callable if at least one feature has been recoded as date. \
-Unless otherwise indicated, all models are run in the [scikit-learn](https://scikit-learn.org/stable/index.html) -default configuration. \
-Crossvalidation, gridsearch and manual hyper parameter tuning are (not yet) implemented.'
 
-st.write(descr_model_launch)
-st.write("")
-
-st.subheader('Scaling')
-
-
-# scaler selection
-
-scalers = {
-    'MinMaxScaler' : MinMaxScaler(),
-    'StandardScaler' : StandardScaler(),
-    'RobustScaler' : RobustScaler()
-}
-
-us_scaler_key = st.radio('What scaler do you want to use?', list(scalers.keys()), index=0, horizontal = True)
-
-# ------------- Launch model calculation --------------
+# ------------- Initialize User Feature and Target Selection --------------
 
 # initialize states for x and y selction by user 
 # if user model relevant selection for all models changes, then we dont want an automatic model rerun below
+
 
 if "y_var_user" not in st.session_state:
     st.session_state.y_var_user = us_y_var
@@ -737,18 +716,90 @@ else:
 if "test_size_user" not in st.session_state:
     st.session_state.test_size_user = test_size_identifier
 
-if "scaler_user" not in st.session_state:
-    st.session_state.scaler_user = us_scaler_key
-
 check_y_no_change = st.session_state.y_var_user == us_y_var
 check_x_no_change = st.session_state.x_var_user == us_x_var
 check_test_size_no_change = st.session_state.test_size_user == test_size_identifier
-check_scaler_no_change = st.session_state.scaler_user == us_scaler_key
 
-# check y for possible models
+# Column Types for possible models
 reg_cols = find_num_cols(train_df)
 clas_cols = train_df.select_dtypes(include=['object', 'bool', 'int']).columns
 cat_cols_x = find_cat_cols(X_train_df)
+
+
+# ------------- Feature Importance with XGB --------------
+
+# only if y is a number type
+if us_y_var in reg_cols and len(cat_cols_x) == 0 and len(us_x_var) > 0:
+
+    
+    st.subheader("Feature Importance with XGBoost Regression")
+
+    # check that at least one model has been selected otherwise don't show launch button
+    start_reg_feature_importance = st.button("Start Feature Importance Analysis")
+    
+    # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
+
+    if "start_reg_feature_importance_state" not in st.session_state :
+        st.session_state.start_reg_feature_importance_state = False
+
+    if (start_reg_feature_importance or (st.session_state.start_reg_feature_importance_state 
+                            and check_y_no_change 
+                            and check_x_no_change
+                            and check_test_size_no_change)):
+        st.session_state.start_reg_feature_importance_state = True
+        st.session_state.y_var_user = us_y_var
+        st.session_state.x_var_user = us_x_var
+        st.session_state.test_size_user = test_size_identifier
+
+        X_train = X_train_df.to_numpy()
+        y_train = y_train_ser.to_numpy()
+        X_test = X_test_df.to_numpy()
+        y_test = y_test_ser.to_numpy()
+
+        reg = xgb.XGBRegressor(early_stopping_rounds=10)
+        reg.fit(X_train, y_train, eval_set=[(X_test, y_test)])
+
+        feature_importance = list(reg.feature_importances_)
+        feature_name = list(X_train_df.columns)
+        FeatureImportance_df=pd.DataFrame({'Name': feature_name, 'Importance': feature_importance})
+        FeatureImportance_df = FeatureImportance_df.sort_values(by=['Importance'], ascending=False)
+        FeatureImportance_df.reset_index(drop = True, inplace = True)
+
+        fig = px.bar(FeatureImportance_df, x='Name', y='Importance').update_layout(xaxis_title= 'feature', yaxis_title= 'importance (gain)', title = 'feature importance')
+        st.plotly_chart(fig)
+
+    st.markdown("""---""")
+
+
+# ------------- Launch model calculation --------------
+
+st.header('Launch Model Training and Prediction')
+descr_model_launch = 'Regression models are only launchable if the chosen target variable is a number and \
+classification models in turn, only if it is of type bool, object or int and the target has between 2 and 100 unique labels. \
+Time Series analysis is only callable if at least one feature has been recoded as date. \
+Unless otherwise indicated, all models are run in the [scikit-learn](https://scikit-learn.org/stable/index.html) -default configuration. \
+Crossvalidation, gridsearch and manual hyper parameter tuning are (not yet) implemented.'
+
+st.write(descr_model_launch)
+st.write("")
+
+st.subheader('Scaling')
+
+
+# scaler selection
+scalers = {
+    'MinMaxScaler' : MinMaxScaler(),
+    'StandardScaler' : StandardScaler(),
+    'RobustScaler' : RobustScaler()
+}
+
+us_scaler_key = st.radio('What scaler do you want to use?', list(scalers.keys()), index=0, horizontal = True)
+
+# initialize scaler
+if "scaler_user" not in st.session_state:
+    st.session_state.scaler_user = us_scaler_key
+
+check_scaler_no_change = st.session_state.scaler_user == us_scaler_key
 
 
 # function for running and comparing regression models
@@ -916,6 +967,7 @@ def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
 if len(cat_cols_x) > 0:
     st.warning('Models can not be launched with categroical independent variables '+str(list(cat_cols_x))+'.\
                 Please recode as dummies or exclude.', icon="⚠️")
+
 
 #--- Regression models
 
