@@ -5,7 +5,6 @@
 # - export model ?
 # - predict new data?
 # - feature importance - maybe just use random forrest for that?
-# - add xg boost ?
 
 # ------------- Libraries & Project Specific Functions --------------
 
@@ -761,6 +760,7 @@ regression_models = {
           'LinearSVR' : LinearSVR(),
           # 'SVR' : SVR(), extremly slow on big data sets
           'GradientBoostingRegressor': GradientBoostingRegressor(),
+          'XGBRegressor': xgb.XGBRegressor(),
           # 'HistGradientBoostingRegressor': HistGradientBoostingRegressor(), # it is extremely slow on streamlit hosted server
           'DummyRegressor': DummyRegressor()
           }
@@ -841,7 +841,8 @@ classifier_models = {'RandomForestClassifier': RandomForestClassifier(),
                         'LinearSVC': LinearSVC(),
                         'DummyClassifier': DummyClassifier(),
                         'KNeighborsClassifier': KNeighborsClassifier(),
-                        'Perceptron': Perceptron()
+                        'Perceptron': Perceptron(),
+                        'XGBClassifier' : xgb.XGBClassifier()
                         }
 
 # function for running and comparing classification models
@@ -889,8 +890,8 @@ def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
         w_recall_scores.append(round(recall, 4))
         w_f1_scores.append(round(f1, 4))
         duration_scores.append(round(duration, 4))
-        predictions[i] = y_test_predict
-        class_labels[i] = list(m_clas.classes_)
+        predictions[i] = le.inverse_transform(y_test_predict)
+        class_labels[i] = list(le.inverse_transform(m_clas.classes_))
 
         text_counter += 1
         percent_complete += increment_progress
@@ -903,7 +904,7 @@ def class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models):
 
     # create prediction dataframe
     clas_pred_y_df = pd.DataFrame(predictions)
-    clas_pred_y_df['y_test'] = pd.Series(y_test)
+    clas_pred_y_df['y_test'] = pd.Series(le.inverse_transform(y_test))
     
     # create class dataframe
     clas_label_df = pd.DataFrame(class_labels)
@@ -1080,6 +1081,15 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0 and unique_y > 1 and  unique_y
 
         # run scaling
         X_train, X_test, y_train, y_test = scaling_test_train(X_train_df, X_test_df, y_train_ser, y_test_ser, us_scaler_key)
+
+        # encode labels for y
+
+        y_train_labels = y_train.copy()
+        y_test_labels = y_test.copy()
+
+        le = LabelEncoder()
+        y_train = le.fit_transform(y_train)
+        y_test = le.transform(y_test)
 
         # run classification models
         clas_scores_df, clas_pred_y_df, clas_label_df = class_models_comparison(X_train, X_test, y_train, y_test, us_clas_models)

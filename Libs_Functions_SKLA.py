@@ -25,7 +25,7 @@ from sklearn.svm import SVR, SVC, LinearSVR, LinearSVC
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.decomposition import PCA
-import streamlit as st
+import xgboost as xgb
 
 # ------------- Settings --------------
 
