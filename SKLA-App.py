@@ -732,7 +732,12 @@ cat_cols_x = find_cat_cols(X_train_df)
 if us_y_var in reg_cols and len(cat_cols_x) == 0 and len(us_x_var) > 0:
 
     
-    st.subheader("Feature Importance with XGBoost Regression")
+    st.header("Feature Importance")
+    st.write("Here the feature importance is assessed with the XGBoost Regressor that uses boosted trees. \
+             The importance (gain) implies the relative contribution of the corresponding feature to the model,\
+              calculated by taking each feature’s contribution for each tree in the model. \
+             A higher value of this metric when compared to another feature implies it is \
+             more important for generating a prediction.")
 
     # check that at least one model has been selected otherwise don't show launch button
     start_reg_feature_importance = st.button("Start Feature Importance Analysis")
@@ -770,6 +775,61 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0 and len(us_x_var) > 0:
 
     st.markdown("""---""")
 
+
+# only for classification
+
+unique_y = len(train_df[us_y_var].unique())
+
+if us_y_var in clas_cols and len(cat_cols_x) == 0 and unique_y > 1 and  unique_y <= 100 and len(us_x_var) > 0:
+
+    
+    st.header("Feature Importance")
+    st.write("Here the feature importance is assessed with the XGBoost Classifier that uses boosted trees. \
+             The importance (gain) implies the relative contribution of the corresponding feature to the model,\
+              calculated by taking each feature’s contribution for each tree in the model. \
+             A higher value of this metric when compared to another feature implies it is \
+             more important for generating a prediction.")
+
+    # check that at least one model has been selected otherwise don't show launch button
+    start_clas_feature_importance = st.button("Start Feature Importance Analysis")
+    
+    # initialise session state - this keeps the analysis open when other widgets are pressed and therefore script is rerun
+
+    if "start_clas_feature_importance_state" not in st.session_state :
+        st.session_state.start_clas_feature_importance_state = False
+
+    if (start_clas_feature_importance or (st.session_state.start_clas_feature_importance_state 
+                            and check_y_no_change 
+                            and check_x_no_change
+                            and check_test_size_no_change)):
+        st.session_state.start_clas_feature_importance_state = True
+        st.session_state.y_var_user = us_y_var
+        st.session_state.x_var_user = us_x_var
+        st.session_state.test_size_user = test_size_identifier
+
+        X_train = X_train_df.to_numpy()
+        y_train = y_train_ser.to_numpy()
+        X_test = X_test_df.to_numpy()
+        y_test = y_test_ser.to_numpy()
+
+        le = LabelEncoder()
+        y_train = le.fit_transform(y_train)
+        y_test = le.transform(y_test)
+
+        reg = xgb.XGBClassifier(early_stopping_rounds=10)
+        reg.fit(X_train, y_train, eval_set=[(X_test, y_test)])
+
+        feature_importance = list(reg.feature_importances_)
+        feature_name = list(X_train_df.columns)
+        FeatureImportance_df=pd.DataFrame({'Name': feature_name, 'Importance': feature_importance})
+        FeatureImportance_df = FeatureImportance_df.sort_values(by=['Importance'], ascending=False)
+        FeatureImportance_df.reset_index(drop = True, inplace = True)
+
+        fig = px.bar(FeatureImportance_df, x='Name', y='Importance').update_layout(xaxis_title= 'Feature', yaxis_title= 'Importance (Gain)', title = 'Feature Importance according to XGBoost Classifier')
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
+
+    st.markdown("""---""")
 
 # ------------- Launch model calculation --------------
 
@@ -1148,6 +1208,13 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0 and unique_y > 1 and  unique_y
 
         # Titel
         st.subheader("Results for Classification Models on Testset")
+        with st.expander("See metrics explanation"):
+            st.write("""
+                - Accuracy: Represents the number of correctly classified data instances over the total number of data instances. A score of 1.0 is a perfect score. The DummyClassifier just allways predicts the most frequent class and can be seen as a basline for all other models.
+                - Precision (positive predictive value): In a classification task, the precision for a class is the number of true positives (i.e. the number of items correctly labelled as belonging to the positive class) divided by the total number of elements labelled as belonging to the positive class (i.e. the sum of true positives and false positives, which are items incorrectly labelled as belonging to the class).
+                - Recall (sensitivity or true positive rate): Is defined as the number of true positives divided by the total number of elements that actually belong to the positive class (i.e. the sum of true positives and false negatives, which are items which were not labelled as belonging to the positive class but should have been).
+                - F1: Combines the precision and recall of a classifier into a single metric by taking their harmonic mean.
+            """)
         
         fig = px.bar(clas_scores_df, x = 'Accuracy', y = 'Model', orientation = 'h', color = 'Accuracy')
         fig['layout']['yaxis']['autorange'] = "reversed"
