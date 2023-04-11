@@ -668,7 +668,8 @@ col1, col2 = st.columns((0.25, 0.75))
 col1.dataframe(y_train_ser[0:1000])
 
 fig = px.histogram(train_df, x= us_y_var )
-col2.plotly_chart(fig, use_container_width=True)
+fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+col2.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
 st.write('Chosen features:')
 st.dataframe(X_train_df.head(1000))
@@ -770,8 +771,9 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0 and len(us_x_var) > 0:
         FeatureImportance_df = FeatureImportance_df.sort_values(by=['Importance'], ascending=False)
         FeatureImportance_df.reset_index(drop = True, inplace = True)
 
-        fig = px.bar(FeatureImportance_df, x='Name', y='Importance').update_layout(xaxis_title= 'feature', yaxis_title= 'importance (gain)', title = 'feature importance')
-        st.plotly_chart(fig)
+        fig = px.bar(FeatureImportance_df, x='Name', y='Importance').update_layout(xaxis_title= 'Feature', yaxis_title= 'Importance (Gain)', title = 'Feature Importance according to XGBoost Regressor')
+        fig = fig.update_layout(newshape_line_color = drawing_color_plotly)    
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
 
     st.markdown("""---""")
 
