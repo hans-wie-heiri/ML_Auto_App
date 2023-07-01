@@ -4,7 +4,6 @@
 # - st.experimental_data_editor make dataframe editable ?
 # - export model ?
 # - predict new data?
-# - feature importance - maybe just use random forrest for that?
 
 # ------------- Libraries & Project Specific Functions --------------
 
@@ -287,6 +286,108 @@ except:
     st.warning('Could not create Plot. Maybe Data exceeds the message size limit of 200.0 MB', icon="⚠️")
 
 
+use_biv_stat = st.radio("Do you want to do bivariate statistics?", ['no', 'yes'], horizontal=True)
+
+if use_biv_stat == 'yes':
+    st.subheader('Bivariate Statistics')
+
+    col1_biv, col2_biv = st.columns(2)
+    with col1_biv:
+        biv_var_1 = st.selectbox('select variable 1', list(df.columns))
+    with col2_biv:
+        biv_var_2 = st.selectbox('select variable 2', list(df.columns))
+
+    if biv_var_1 in cat_cols and biv_var_2 in cat_cols:
+        st.info('both variables are categorical: Chi-Square Test', icon="ℹ️")
+        
+        use_chi_plot = st.radio('', ['values', 'row percent', 'column percent'], horizontal = True)
+
+        if use_chi_plot == 'values':
+            ct_pct = pd.crosstab(df[biv_var_1], df[biv_var_2])
+        elif use_chi_plot == 'row percent':
+            ct_pct = pd.crosstab(df[biv_var_1], df[biv_var_2], normalize='index')
+        else:
+            ct_pct = pd.crosstab(df[biv_var_1], df[biv_var_2], normalize='columns')
+        fig = px.imshow(ct_pct, text_auto=True, 
+                    color_continuous_scale=px.colors.sequential.Blues_r)
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
+
+        ct_chi2 =pd.crosstab(df[biv_var_1], df[biv_var_2])
+        p = sp.chi2_contingency(ct_chi2)[1]
+        st.write(f'The p-value is {round(p, 3)}')
+        
+
+    elif biv_var_1 in cat_cols or biv_var_2 in cat_cols:
+        
+        if biv_var_1 in cat_cols:
+            cat_is = biv_var_1
+            num_is = biv_var_2
+        else:
+            cat_is = biv_var_2
+            num_is = biv_var_1
+
+        n_cat = len(df[cat_is].unique())
+
+        if n_cat <= 1:
+            st.info('one is a categorical variable but only one unique value (the other numeric): No test', icon="ℹ️")
+
+            grouped_df = df.groupby([cat_is], as_index=False).agg({num_is:['mean','std']})
+            grouped_df.columns = [cat_is, num_is+'_mean', num_is+'_std']
+            num_mean = num_is+'_mean'
+            num_std = num_is+'_std'
+            #st.dataframe(grouped_df)
+            fig = px.bar(grouped_df, x = cat_is, y = num_mean, error_y = num_std)
+            st.plotly_chart(fig, use_container_width=True, config = config_plotly)
+
+        elif n_cat <= 2:
+            st.info('one is a categorical variable with two unique values, the other numeric: T-Test', icon="ℹ️")
+
+            grouped_df = df.groupby([cat_is], as_index=False).agg({num_is:['mean','std']})
+            grouped_df.columns = [cat_is, num_is+'_mean', num_is+'_std']
+            num_mean = num_is+'_mean'
+            num_std = num_is+'_std'
+            #st.dataframe(grouped_df)
+            fig = px.bar(grouped_df, x = cat_is, y = num_mean, error_y = num_std)
+            st.plotly_chart(fig, use_container_width=True, config = config_plotly)
+
+
+            c0 = df[cat_is].unique()[0]
+            c1 = df[cat_is].unique()[1]
+
+            d0 = df[df[cat_is] == c0][num_is]
+            d1 = df[df[cat_is] == c1][num_is]
+
+            p = sp.ttest_ind(d0, d1, equal_var=True)[1]
+            st.write(f'The p-value is {round(p, 3)}')
+        else:
+            st.info('one is a categorical variable with multiple unique values, the other numeric: ANOVA', icon="ℹ️")
+            
+            grouped_df = df.groupby([cat_is], as_index=False).agg({num_is:['mean','std']})
+            grouped_df.columns = [cat_is, num_is+'_mean', num_is+'_std']
+            num_mean = num_is+'_mean'
+            num_std = num_is+'_std'
+            #st.dataframe(grouped_df)
+            fig = px.bar(grouped_df, x = cat_is, y = num_mean, error_y = num_std)
+            st.plotly_chart(fig, use_container_width=True, config = config_plotly)
+            
+            cols = [num_is, cat_is]  # list of independent variables
+            cols_str = " ~ ".join(cols)
+            cw_lm=ols(cols_str, data=df).fit() 
+            res = sm.stats.anova_lm(cw_lm)
+            p = res['PR(>F)'][0]
+            st.write(f'The p-value is {round(p, 3)}')
+
+    else:
+        st.info('both are numerical: pearson correlation', icon="ℹ️")
+        fig = px.scatter(df, x=biv_var_1, y=biv_var_2, trendline="ols", trendline_color_override="yellow")
+        st.plotly_chart(fig, use_container_width=True, config = config_plotly)
+        list_cor = [biv_var_1, biv_var_2]
+        df_cor_sub = df[list_cor]
+        df_cor_sub = df_cor_sub.dropna()
+        r = sp.pearsonr(df_cor_sub.iloc[:,0], df_cor_sub.iloc[:,1])[0]
+        st.write(f'The pearson r is {round(r, 3)}')
+
+st.write("")
 use_cor_matrix = st.radio("Do you want to create a correlation matrix of the numeric variables?", ['no', 'yes'], horizontal=True)
 
 if use_cor_matrix == 'yes':
@@ -836,7 +937,9 @@ if us_y_var in clas_cols and len(cat_cols_x) == 0 and unique_y > 1 and  unique_y
 # ------------- Launch model calculation --------------
 
 st.header('Launch Model Training and Prediction')
-descr_model_launch = 'Regression models are only launchable if the chosen target variable is a number and \
+descr_model_launch = 'Here is a selection of algorithms that can be applied to predict the selected target and compared on their performance metrics. \
+    The models will be trained on the training data and their prediction will be scored on the unseen test set. \
+    Regression models are only launchable if the chosen target variable is a number and \
 classification models in turn, only if it is of type bool, object or int and the target has between 2 and 100 unique labels. \
 Time Series analysis is only callable if at least one feature has been recoded as date. \
 Unless otherwise indicated, all models are run in the [scikit-learn](https://scikit-learn.org/stable/index.html) -default configuration. \
@@ -1081,6 +1184,13 @@ if us_y_var in reg_cols and len(cat_cols_x) == 0 and len(us_x_var) > 0:
 
         # Titel
         st.subheader("Results for Regression Models on Testset")
+        with st.expander("See metrics explanation"):
+            st.write("""
+                - R2: the coefficient of determination, is the proportion of the variation in the dependent variable that is predictable from the independent variable(s). The closer the value is to 1 the more variance is explained by the model.
+                - MAE: mean absolute error is a measure of errors between paired observations expressing the same phenomenon (e.g. true target value and predicted target value). MAE is calculated as the sum of absolute errors divided by the sample size.
+                - MSE: the mean squared error of an estimator measures the average of the squares of the errors — that is, the average squared difference between the estimated values and the actual value.
+                - RMSE: taking the square root of MSE yields the root-mean-square error, which has the same units as the quantity being estimated.
+            """)
 
         # plot model scores
         fig = px.bar(reg_scores_df, x = 'max(R2, 0)', y = 'Model', orientation = 'h', color = 'max(R2, 0)',
@@ -1355,6 +1465,13 @@ if len(converted_date_var) > 0 and len(cat_cols_x) == 0 and us_test_basis == tes
 
         # Titel
         st.subheader("Results for Regression Models on Testset")
+        with st.expander("See metrics explanation"):
+            st.write("""
+                - R2: the coefficient of determination, is the proportion of the variation in the dependent variable that is predictable from the independent variable(s). The closer the value is to 1 the more variance is explained by the model.
+                - MAE: mean absolute error is a measure of errors between paired observations expressing the same phenomenon (e.g. true target value and predicted target value). MAE is calculated as the sum of absolute errors divided by the sample size.
+                - MSE: the mean squared error of an estimator measures the average of the squares of the errors — that is, the average squared difference between the estimated values and the actual value.
+                - RMSE: taking the square root of MSE yields the root-mean-square error, which has the same units as the quantity being estimated.
+            """)
 
         # plot model scores
         fig = px.bar(ts_scores_df, x = 'max(R2, 0)', y = 'Model', orientation = 'h', color = 'max(R2, 0)',
